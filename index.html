@@ -432,6 +432,39 @@
             color: var(--text-muted);
             line-height: 1.4;
         }
+
+        .recording-time-pickers {
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:12px;
+            margin:8px 0 10px;
+        }
+        .sub-label {
+            display:block;
+            font-size:11px;
+            font-weight:600;
+            margin-bottom:5px;
+            color:var(--text-muted);
+        }
+        #formRecType {
+            width:100%;
+            padding:10px 12px;
+            border:1px solid var(--border-color);
+            border-radius:8px;
+            background:var(--bg-primary);
+            color:var(--text-main);
+            font:inherit;
+        }
+        .recording-time-pickers input[type="time"] {
+            width:100%;
+            box-sizing:border-box;
+            padding:10px 12px;
+            border:1px solid var(--border-color);
+            border-radius:8px;
+            background:var(--bg-primary);
+            color:var(--text-main);
+            font:inherit;
+        }
     </style>
 </head>
 <body>
@@ -511,13 +544,32 @@
                     <div class="form-group"><label>Software Name</label><input type="text" id="formSoftware" placeholder="e.g., iVMS 4200"></div>
                     <div class="form-group">
                         <label>Recording Time</label>
+                        <select id="formRecType" onchange="updateRecordingTimeEditor()">
+                            <option value="live">🟢 Live Main View</option>
+                            <option value="closed">🔴 Closed Off TV / Restore</option>
+                            <option value="custom">✏️ Custom</option>
+                        </select>
+
+                        <div class="recording-time-pickers">
+                            <div>
+                                <label class="sub-label">Start Time</label>
+                                <input type="time" id="formRecStart" value="18:00" onchange="updateRecordingTimeEditor()">
+                            </div>
+                            <div>
+                                <label class="sub-label">End Time</label>
+                                <input type="time" id="formRecEnd" value="06:00" onchange="updateRecordingTimeEditor()">
+                            </div>
+                        </div>
+
                         <input type="text" id="formRecTime"
-                               placeholder="e.g., 06.00 PM To 06.00 AM (Live Main view)"
-                               oninput="updateRecordingTimeColor(this)">
+                               placeholder="Generated recording time"
+                               oninput="this.dataset.generated='0'; updateRecordingTimeColor(this)">
+
                         <div class="rec-time-help">
-                            🟢 06.00 PM To 06.00 AM = Live Main view &nbsp; | &nbsp;
-                            🔴 06.01 AM to 9.00 AM = Closed off TV/restore<br>
-                            Other/new text is also allowed.
+                            Admin can set <strong>any start/end time</strong>. Example:
+                            <strong>07.00 PM To 05.00 AM</strong>.<br>
+                            🟢 Live Main View = green &nbsp; | &nbsp;
+                            🔴 Closed Off TV / Restore = red
                         </div>
                     </div>
                 </div>
@@ -750,6 +802,40 @@
             renderMatrix();
         }
 
+        function formatTimeForRecording(value) {
+            if (!value) return '';
+            const [hh, mm] = value.split(':').map(Number);
+            if (Number.isNaN(hh) || Number.isNaN(mm)) return value;
+            const suffix = hh >= 12 ? 'PM' : 'AM';
+            let h = hh % 12;
+            if (h === 0) h = 12;
+            return String(h).padStart(2, '0') + '.' + String(mm).padStart(2, '0') + ' ' + suffix;
+        }
+
+        function updateRecordingTimeEditor() {
+            const type = document.getElementById('formRecType');
+            const start = document.getElementById('formRecStart');
+            const end = document.getElementById('formRecEnd');
+            const input = document.getElementById('formRecTime');
+            if (!type || !start || !end || !input) return;
+
+            const base = formatTimeForRecording(start.value) + ' To ' + formatTimeForRecording(end.value);
+
+            if (type.value === 'live') {
+                input.value = base + ' (Live Main view)';
+            } else if (type.value === 'closed') {
+                input.value = base + ' (Closed off TV/restore)';
+            } else {
+                // Custom: do not overwrite the user's text.
+                if (!input.value || input.dataset.generated === '1') {
+                    input.value = base;
+                }
+            }
+
+            input.dataset.generated = '1';
+            updateRecordingTimeColor(input);
+        }
+
         function getRecordingTimeClass(value) {
             const s = String(value || '').trim().toUpperCase().replace(/\s+/g, ' ');
             if (!s) return 'rec-time-custom';
@@ -773,6 +859,36 @@
 
             // New/custom text is allowed and remains neutral.
             return 'rec-time-custom';
+        }
+
+        function setRecordingTimeEditor(value) {
+            const input = document.getElementById('formRecTime');
+            const type = document.getElementById('formRecType');
+            const start = document.getElementById('formRecStart');
+            const end = document.getElementById('formRecEnd');
+            if (!input || !type || !start || !end) return;
+
+            input.value = value || '';
+            input.dataset.generated = '0';
+
+            const m = String(value || '').match(/(\d{1,2})[.:](\d{2})\s*(AM|PM)\s+TO\s+(\d{1,2})[.:](\d{2})\s*(AM|PM)/i);
+            if (m) {
+                function to24(h, min, ap) {
+                    h = Number(h); min = Number(min);
+                    if (ap.toUpperCase() === 'AM') h = h === 12 ? 0 : h;
+                    else h = h === 12 ? 12 : h + 12;
+                    return String(h).padStart(2,'0') + ':' + String(min).padStart(2,'0');
+                }
+                start.value = to24(m[1], m[2], m[3]);
+                end.value = to24(m[4], m[5], m[6]);
+            }
+
+            const upper = String(value || '').toUpperCase();
+            if (upper.includes('LIVE MAIN VIEW')) type.value = 'live';
+            else if (upper.includes('CLOSED OFF TV') || upper.includes('CLOSED OFF TV / RESTORE') || upper.includes('CLOSED OFF TV/RESTORE')) type.value = 'closed';
+            else type.value = 'custom';
+
+            updateRecordingTimeColor(input);
         }
 
         function updateRecordingTimeColor(input) {
@@ -957,8 +1073,7 @@
                 document.getElementById('formPortNo').value = r.portNo || '';
                 document.getElementById('formCamNumbers').value = r.camNumbers || '';
                 document.getElementById('formSoftware').value = r.software || '';
-                document.getElementById('formRecTime').value = r.recTime || '';
-                updateRecordingTimeColor(document.getElementById('formRecTime'));
+                setRecordingTimeEditor(r.recTime || '');
             } else {
                 title.innerText = "Append New Matrix Row Configuration";
                 document.getElementById('formRowId').value = '';
@@ -969,8 +1084,12 @@
                 document.getElementById('formPortNo').value = '';
                 document.getElementById('formCamNumbers').value = '';
                 document.getElementById('formSoftware').value = '';
+                document.getElementById('formRecStart').value = '18:00';
+                document.getElementById('formRecEnd').value = '06:00';
+                document.getElementById('formRecType').value = 'live';
                 document.getElementById('formRecTime').value = '';
-                updateRecordingTimeColor(document.getElementById('formRecTime'));
+                document.getElementById('formRecTime').dataset.generated = '1';
+                updateRecordingTimeEditor();
             }
             overlay.classList.add('active');
             document.getElementById('formPcNo').focus();
