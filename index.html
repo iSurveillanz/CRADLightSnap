@@ -340,6 +340,43 @@
             color: var(--text-main); font-size: 14px; outline: none; transition: var(--transition);
         }
         .form-group input:focus { border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15); }
+        .recording-time-item {
+            display: grid;
+            grid-template-columns: 1.25fr 0.85fr 0.8fr 0.8fr 40px;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 7px;
+        }
+        .recording-time-item input,
+        .recording-time-item select {
+            width: 100%;
+            padding: 8px 9px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-main);
+            font-size: 13px;
+            outline: none;
+        }
+        .recording-time-preview {
+            margin-top: 6px;
+            display: grid;
+            gap: 5px;
+        }
+        .recording-time-preview-item {
+            border-radius: 8px;
+            padding: 7px 10px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+        .rt-red { background:#fee2e2; color:#b91c1c; }
+        .rt-green { background:#dcfce7; color:#15803d; }
+        .rt-blue { background:#dbeafe; color:#1d4ed8; }
+        .rt-orange { background:#ffedd5; color:#c2410c; }
+        @media (max-width: 760px) {
+            .recording-time-item { grid-template-columns: 1fr 1fr; }
+        }
+
         .modal-footer {
             padding: 14px 24px; background-color: var(--bg-primary);
             border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;
@@ -807,7 +844,12 @@
     </div>
 
     <script>
+        const IS_ADMIN = new URLSearchParams(window.location.search).get('admin') === '1';
+        const DATA_CSV_URL = 'data.csv';
+
         let systemRows = [];
+        let recordingTimeItems = [];
+        
         let currentSearchQuery = '';
         let pendingDeleteId = null;
         let autoGroupEnabled = true;
@@ -919,6 +961,49 @@
 
         function persistState() {
             if (IS_ADMIN) localStorage.setItem('cctv_admin_draft', JSON.stringify(systemRows));
+        }
+
+
+        function parseCsvLine(line) {
+            const out = [];
+            let cur = '', quoted = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (ch === '"') {
+                    if (quoted && line[i + 1] === '"') { cur += '"'; i++; }
+                    else quoted = !quoted;
+                } else if (ch === ',' && !quoted) {
+                    out.push(cur); cur = '';
+                } else cur += ch;
+            }
+            out.push(cur);
+            return out;
+        }
+
+        function csvToRows(text) {
+            const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(x => x.trim());
+            if (lines.length < 2) return [];
+            const headers = parseCsvLine(lines[0]).map(x => x.trim());
+            const idx = (name) => headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
+
+            return lines.slice(1).map((line, n) => {
+                const v = parseCsvLine(line);
+                const get = (name) => {
+                    const i = idx(name);
+                    return i >= 0 ? (v[i] || '').trim() : '';
+                };
+                return {
+                    id: get('ID') || ('csv_' + n + '_' + Date.now()),
+                    pcNo: get('PC No'),
+                    clientName: get('Client Name'),
+                    network: get('PC For Network'),
+                    tvDisplay: get('TV Display'),
+                    portNo: get('Port No'),
+                    camNumbers: get('Camera Numbers'),
+                    software: get('Software'),
+                    recTime: get('Recording Time')
+                };
+            }).filter(r => r.pcNo || r.clientName);
         }
 
         function parseCameraStringCount(camStr) {
@@ -1186,10 +1271,12 @@
             if (!IS_ADMIN) return;
             const overlay = document.getElementById('modalRow');
             const title = document.getElementById('modalTitle');
+
             if (id) {
                 title.innerText = "Modify Existing Configuration Row Matrix";
-                const r = systemRows.find(item => item.id === id);
+                const r = systemRows.find(item => String(item.id) === String(id));
                 if (!r) return;
+
                 document.getElementById('formRowId').value = r.id;
                 document.getElementById('formPcNo').value = r.pcNo || '';
                 document.getElementById('formClientName').value = r.clientName || '';
@@ -1198,7 +1285,7 @@
                 document.getElementById('formPortNo').value = r.portNo || '';
                 document.getElementById('formCamNumbers').value = r.camNumbers || '';
                 document.getElementById('formSoftware').value = r.software || '';
-                textToRecordingTimeItems(r.recTime || '');
+                recordingTimeItems = parseRecordingTimes(r.recTime || '');
             } else {
                 title.innerText = "Append New Matrix Row Configuration";
                 document.getElementById('formRowId').value = '';
@@ -1209,9 +1296,11 @@
                 document.getElementById('formPortNo').value = '';
                 document.getElementById('formCamNumbers').value = '';
                 document.getElementById('formSoftware').value = '';
-                document.getElementById('recordingTimeList').innerHTML = '';
-                addRecordingTimeItem({type:'Live view', color:'red', start:'06.00 AM', end:'06.00 PM'});
+                recordingTimeItems = [];
+                addRecordingTimeItem(false);
             }
+
+            renderRecordingTimeEditor();
             overlay.classList.add('active');
             document.getElementById('formPcNo').focus();
         }
@@ -1219,8 +1308,7 @@
         function closeRowModal() { document.getElementById('modalRow').classList.remove('active'); }
 
         function saveRow() {
-            if (!IS_ADMIN) return;
-            const id = document.getElementById('formRowId').value;
+            const id = document.getElementById('formRowId').value.trim();
             const pcNo = document.getElementById('formPcNo').value.trim();
             const clientName = document.getElementById('formClientName').value.trim();
             const network = document.getElementById('formNetwork').value.trim();
@@ -1228,35 +1316,92 @@
             const portNo = document.getElementById('formPortNo').value.trim();
             const camNumbers = document.getElementById('formCamNumbers').value.trim();
             const software = document.getElementById('formSoftware').value.trim();
-            const recTime = recordingTimeItemsToText();
+
             if (!pcNo || !clientName || !network || !tvDisplay || !portNo || !camNumbers) {
                 alert('All required fields marked with * must be filled.');
                 return;
             }
+
+            const recTime = recordingTimeItems
+                .map(x => [x.type, x.color, x.start, x.end].join('|'))
+                .join(' || ');
+
             const payload = { pcNo, clientName, network, tvDisplay, portNo, camNumbers, software, recTime };
+
             if (id) {
-                const idx = systemRows.findIndex(item => item.id === id);
-                if (idx !== -1) {
-                    systemRows[idx] = { id, ...payload };
-                } else {
-                    alert('The selected row could not be found. Please close and open Edit again.');
+                const idx = systemRows.findIndex(item => String(item.id) === String(id));
+                if (idx === -1) {
+                    alert('Row not found. Please close the window and click Edit again.');
                     return;
                 }
+                systemRows[idx] = { ...systemRows[idx], ...payload };
             } else {
-                systemRows.push({ id: 'row_' + Date.now(), ...payload });
+                systemRows.push({ id: 'row_' + Date.now() + '_' + Math.random().toString(36).slice(2,8), ...payload });
             }
 
-            // Save the current Admin changes in this browser immediately.
             persistState();
-
             applySorting();
             renderMatrix();
             closeRowModal();
+            alert('Saved successfully. Click Download CSV to create the updated data.csv.');
+        }
 
-            // Make it clear that GitHub/public data is updated only after CSV upload.
-            setTimeout(() => {
-                alert('Saved successfully. Now click “Download CSV” and upload the downloaded CSV to GitHub as data.csv.');
-            }, 50);
+        function parseRecordingTimes(value) {
+            if (!value) return [];
+            return String(value).split(/\s*\|\|\s*/).map(part => {
+                const p = part.split('|');
+                if (p.length >= 4) return { type:p[0], color:p[1] || 'blue', start:p[2], end:p[3] };
+                return { type:part, color:'blue', start:'', end:'' };
+            }).filter(x => x.type || x.start || x.end);
+        }
+
+        function addRecordingTimeItem(render = true) {
+            recordingTimeItems.push({ type:'Live view', color:'red', start:'06.00 AM', end:'06.00 PM' });
+            if (render) renderRecordingTimeEditor();
+        }
+
+        function renderRecordingTimeEditor() {
+            const box = document.getElementById('recordingTimeList');
+            box.innerHTML = '';
+
+            recordingTimeItems.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = 'recording-time-item';
+                row.innerHTML = `
+                    <input value="${escapeHtml(item.type)}" placeholder="Type / Name">
+                    <select>
+                        <option value="red" ${item.color==='red'?'selected':''}>🔴 Red</option>
+                        <option value="green" ${item.color==='green'?'selected':''}>🟢 Green</option>
+                        <option value="blue" ${item.color==='blue'?'selected':''}>🔵 Blue</option>
+                        <option value="orange" ${item.color==='orange'?'selected':''}>🟠 Orange</option>
+                    </select>
+                    <input value="${escapeHtml(item.start)}" placeholder="Start time">
+                    <input value="${escapeHtml(item.end)}" placeholder="End time">
+                    <button type="button" class="btn btn-danger btn-mini" title="Delete time">🗑️</button>
+                `;
+
+                const inputs = row.querySelectorAll('input');
+                inputs[0].oninput = e => { recordingTimeItems[index].type = e.target.value; };
+                inputs[1].oninput = e => { recordingTimeItems[index].start = e.target.value; };
+                inputs[2].oninput = e => { recordingTimeItems[index].end = e.target.value; };
+                row.querySelector('select').onchange = e => { recordingTimeItems[index].color = e.target.value; };
+                row.querySelector('button').onclick = () => {
+                    recordingTimeItems.splice(index, 1);
+                    renderRecordingTimeEditor();
+                };
+
+                box.appendChild(row);
+            });
+
+            const preview = document.createElement('div');
+            preview.className = 'recording-time-preview';
+            recordingTimeItems.forEach(item => {
+                const p = document.createElement('div');
+                p.className = 'recording-time-preview-item rt-' + (item.color || 'blue');
+                p.textContent = `${item.start || ''} To ${item.end || ''} - ${item.type || ''}`;
+                preview.appendChild(p);
+            });
+            box.appendChild(preview);
         }
 
         function openDeleteModal(id) {
@@ -1274,7 +1419,7 @@
 
         function confirmDeleteRow() {
             if (!IS_ADMIN || !pendingDeleteId) return;
-            systemRows = systemRows.filter(item => item.id !== pendingDeleteId);
+            systemRows = systemRows.filter(item => String(item.id) !== String(pendingDeleteId));
             persistState();
             renderMatrix();
             closeDeleteModal();
@@ -1288,16 +1433,36 @@
         }
 
         function exportToCsv() {
-            if (systemRows.length === 0) { alert('No data.'); return; }
+            if (!IS_ADMIN) return;
+            if (!systemRows.length) { alert('No data.'); return; }
+
             const headers = ["ID","PC No","Client Name","PC For Network","TV Display","Port No","Camera Numbers","No. of Cameras","Software","Recording Time"];
             const csvRows = [headers.map(escapeCsvField).join(",")];
+
             systemRows.forEach(r => {
-                csvRows.push([r.id||'',r.pcNo||'',r.clientName||'',r.network||'',r.tvDisplay||'',r.portNo||'',r.camNumbers||'',parseCameraStringCount(r.camNumbers),r.software||'',r.recTime||''].map(escapeCsvField).join(","));
+                csvRows.push([
+                    r.id || '',
+                    r.pcNo || '',
+                    r.clientName || '',
+                    r.network || '',
+                    r.tvDisplay || '',
+                    r.portNo || '',
+                    r.camNumbers || '',
+                    parseCameraStringCount(r.camNumbers),
+                    r.software || '',
+                    r.recTime || ''
+                ].map(escapeCsvField).join(","));
             });
+
             const blob = new Blob(["\uFEFF" + csvRows.join("\r\n")], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement("a"); a.href = url; a.download = 'data.csv';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "data.csv";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         function exportBackup() {
@@ -1320,6 +1485,7 @@
                     if (!imported.every(i => i && typeof i === 'object' && 'pcNo' in i && 'clientName' in i)) { alert('Invalid format.'); return; }
                     if (confirm(`Replace ${systemRows.length} entries with ${imported.length} from "${file.name}"?`)) {
                         systemRows = imported;
+                        persistState();
                         applySorting();
                         renderMatrix();
                         alert(`Restored ${systemRows.length} records.`);
