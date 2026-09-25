@@ -241,7 +241,7 @@
         }
         td {
             padding: 10px 14px;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 2px solid var(--border-color-strong);
             border-right: 1px solid var(--border-color);
             vertical-align: middle;
             color: var(--text-main);
@@ -1133,7 +1133,7 @@ function renderMatrix() {
         const tvGroup = groupAt(tvGroups, rowIndex);
 
         const pcIndex = pcTheme.get(String(r.pcNo || '')) ?? 0;
-        tr.className = `pc-group-theme-${pcIndex}`;
+        tr.className = `pc-group-theme-${pcIndex}` + (rowIndex === pcGroup.start ? " pc-group-start" : "");
 
         const cameraCount = parseCameraStringCount(r.camNumbers);
 
