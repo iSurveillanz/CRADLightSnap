@@ -561,6 +561,12 @@
         @media (max-width:700px) {
             .recording-time-item { grid-template-columns:1fr; }
         } }
+
+        .recording-preview-row.red, .rec-line.red { color:#dc2626 !important; }
+        .recording-preview-row.green, .rec-line.green { color:#15803d !important; }
+        .recording-preview-row.blue, .rec-line.blue { color:#2563eb !important; }
+        .recording-preview-row.orange, .rec-line.orange { color:#ea580c !important; }
+        .rec-line { display:block; font-weight:700; line-height:1.45; }
     </style>
 </head>
 <body>
@@ -647,7 +653,7 @@
                         <div id="recordingTimeList" class="recording-time-list"></div>
                         <button type="button" class="btn btn-secondary recording-time-add" onclick="addRecordingTimeItem()">➕ Add New Time</button>
                         <div class="rec-time-help">
-                            Add any type/name, choose its color, and set any start/end time. Public view shows the same color automatically.
+                            Admin chooses the type name, color, start time, and end time. Add as many times as needed. Public view shows exactly the same information and color.
                         </div>
                         <div id="recordingTimePreview" class="recording-preview"></div>
                     </div>
@@ -882,43 +888,11 @@
         }
 
         function formatTimeForRecording(value) {
-            if (!value) return '';
-            const [hh, mm] = value.split(':').map(Number);
-            if (Number.isNaN(hh) || Number.isNaN(mm)) return value;
-            const suffix = hh >= 12 ? 'PM' : 'AM';
-            let h = hh % 12;
-            if (h === 0) h = 12;
-            return String(h).padStart(2, '0') + '.' + String(mm).padStart(2, '0') + ' ' + suffix;
+            return String(value || '').trim();
         }
 
         function updateRecordingTimeEditor() {
-            const type = document.getElementById('formRecType');
-            const start = document.getElementById('formRecStart');
-            const end = document.getElementById('formRecEnd');
-            const input = document.getElementById('formRecTime');
-            const label = document.getElementById('formRecLabel');
-            if (!type || !start || !end || !input) return;
-
-            const custom = type.value === 'custom';
-            if (label) {
-                label.style.display = custom ? 'block' : 'none';
-            }
-
-            const startText = formatTimeForRecording(start.value);
-            const endText = formatTimeForRecording(end.value);
-            const base = startText + ' To ' + endText;
-
-            if (type.value === 'live') {
-                input.value = base + ' (Live Main view)';
-            } else if (type.value === 'closed') {
-                input.value = base + ' (Closed off TV/restore)';
-            } else if (custom) {
-                const customName = (label && label.value.trim()) ? label.value.trim() : 'Custom';
-                input.value = base + ' (' + customName + ')';
-            }
-
-            input.dataset.generated = '1';
-            updateRecordingTimeColor(input);
+            updateRecordingTimeListPreview();
         }
 
 
@@ -938,8 +912,8 @@
                     <option value="blue" ${color === 'blue' ? 'selected' : ''}>🔵 Blue</option>
                     <option value="orange" ${color === 'orange' ? 'selected' : ''}>🟠 Orange</option>
                 </select>
-                <input class="rt-start" type="time" value="${start}">
-                <input class="rt-end" type="time" value="${end}">
+                <input class="rt-start" type="text" value="${escapeHtml(start)}" placeholder="06.00 AM">
+                <input class="rt-end" type="text" value="${escapeHtml(end)}" placeholder="06.00 PM">
                 <button type="button" class="recording-time-remove">🗑️</button>
             `;
 
@@ -1025,7 +999,7 @@
             list.innerHTML = '';
             const entries = parseRecordingTimeEntries(value);
             if (!entries.length) {
-                addRecordingTimeItem({type:'Live view', color:'red', start:'06:00', end:'18:00'});
+                addRecordingTimeItem({type:'Live view', color:'red', start:'06.00 AM', end:'06.00 PM'});
                 return;
             }
             entries.forEach(entry => addRecordingTimeItem(entry));
@@ -1087,210 +1061,9 @@
             return 'rec-time-custom';
         }
 
-        function setRecordingTimeEditor(value) {
-            const input = document.getElementById('formRecTime');
-            const type = document.getElementById('formRecType');
-            const start = document.getElementById('formRecStart');
-            const end = document.getElementById('formRecEnd');
-            const label = document.getElementById('formRecLabel');
-            if (!input || !type || !start || !end) return;
-
-            input.value = value || '';
-            input.dataset.generated = '0';
-
-            const m = String(value || '').match(/(\d{1,2})[.:](\d{2})\s*(AM|PM)\s+TO\s+(\d{1,2})[.:](\d{2})\s*(AM|PM)/i);
-            if (m) {
-                function to24(h, min, ap) {
-                    h = Number(h); min = Number(min);
-                    if (ap.toUpperCase() === 'AM') h = h === 12 ? 0 : h;
-                    else h = h === 12 ? 12 : h + 12;
-                    return String(h).padStart(2,'0') + ':' + String(min).padStart(2,'0');
-                }
-                start.value = to24(m[1], m[2], m[3]);
-                end.value = to24(m[4], m[5], m[6]);
-            }
-
-            const upper = String(value || '').toUpperCase();
-            if (upper.includes('LIVE MAIN VIEW')) {
-                type.value = 'live';
-                if (label) label.value = '';
-            } else if (upper.includes('CLOSED OFF TV') || upper.includes('CLOSED OFF TV / RESTORE') || upper.includes('CLOSED OFF TV/RESTORE')) {
-                type.value = 'closed';
-                if (label) label.value = '';
-            } else {
-                type.value = 'custom';
-                const matchLabel = String(value || '').match(/\(([^()]*)\)\s*$/);
-                if (label) label.value = matchLabel ? matchLabel[1] : '';
-            }
-
-            if (label) label.style.display = type.value === 'custom' ? 'block' : 'none';
-            updateRecordingTimeColor(input);
-        }
-
-        function updateRecordingTimeColor(input) {(input) {
+        function updateRecordingTimeColor(input) {
             if (!input) return;
-            input.classList.remove('rec-time-live', 'rec-time-closed', 'rec-time-custom');
-            input.classList.add(getRecordingTimeClass(input.value));
-        }
-
-        function renderMatrix() {
-            const tbody = document.getElementById('matrixBody');
-            tbody.innerHTML = '';
-
-            let visibleRows = systemRows.filter(r => {
-                if (!currentSearchQuery) return true;
-                const q = currentSearchQuery;
-                return (r.pcNo && r.pcNo.toLowerCase().includes(q)) ||
-                    (r.clientName && r.clientName.toLowerCase().includes(q)) ||
-                    (r.network && r.network.toLowerCase().includes(q)) ||
-                    (r.tvDisplay && r.tvDisplay.toLowerCase().includes(q)) ||
-                    (r.portNo && r.portNo.toLowerCase().includes(q)) ||
-                    (r.camNumbers && r.camNumbers.toLowerCase().includes(q)) ||
-                    (r.software && r.software.toLowerCase().includes(q)) ||
-                    (r.recTime && r.recTime.toLowerCase().includes(q));
-            });
-
-            if (visibleRows.length === 0) {
-                document.getElementById('tableEmptyState').style.display = 'block';
-                return;
-            }
-            document.getElementById('tableEmptyState').style.display = 'none';
-
-            // PC group index map for background colors
-            let currentPcKey = null, pcGroupIdx = -1;
-            const rowPcGroupMap = [];
-            for (let i = 0; i < visibleRows.length; i++) {
-                const pk = (visibleRows[i].pcNo || '').trim().toUpperCase();
-                if (pk !== currentPcKey) { currentPcKey = pk; pcGroupIdx++; }
-                rowPcGroupMap[i] = pcGroupIdx;
-            }
-
-            // AUTO-GROUP OFF: flat rows
-            if (!autoGroupEnabled) {
-                for (let r = 0; r < visibleRows.length; r++) {
-                    const row = visibleRows[r];
-                    const tr = document.createElement('tr');
-                    tr.classList.add('pc-group-theme-' + (rowPcGroupMap[r] % 8));
-                    if (r > 0 && rowPcGroupMap[r] !== rowPcGroupMap[r - 1]) tr.classList.add('pc-group-start');
-                    const camCount = parseCameraStringCount(row.camNumbers);
-                    tr.innerHTML = `
-                        <td class="cell-pc"><strong>${escapeHtml(row.pcNo)}</strong></td>
-                        <td class="cell-client">${escapeHtml(row.clientName)}</td>
-                        <td class="cell-network">${escapeHtml(row.network)}</td>
-                        <td class="cell-tv">${escapeHtml(row.tvDisplay)}</td>
-                        <td>${escapeHtml(row.portNo)}</td>
-                        <td><code>${escapeHtml(row.camNumbers)}</code></td>
-                        <td><span class="badge">${camCount}</span></td>
-                        <td class="cell-display-total">${camCount}</td>
-                        <td class="cell-cameras-total">${camCount}</td>
-                        <td>${escapeHtml(row.software || '-')}</td>
-                        <td class="col-rec-time">${renderRecordingTimeCell(row.recTime)}</td>
-                        <td class="col-actions admin-only">
-                            <div class="action-cell">
-                                <button class="btn btn-secondary btn-mini" title="Edit" onclick="openRowModal('${row.id}')">✏️</button>
-                                <button class="btn btn-danger btn-mini" title="Delete" onclick="openDeleteModal('${row.id}')">🗑️</button>
-                            </div>
-                        </td>`;
-                    tbody.appendChild(tr);
-                }
-                return;
-            }
-
-            // AUTO-GROUP ON: hierarchical rowspans
-            const norm = (v) => (v || '').trim().toUpperCase();
-            const isSamePc      = (i, j) => norm(visibleRows[i].pcNo) === norm(visibleRows[j].pcNo);
-            const isSameNetwork = (i, j) => isSamePc(i, j) && norm(visibleRows[i].network) === norm(visibleRows[j].network);
-            const isSameClient  = (i, j) => isSameNetwork(i, j) && norm(visibleRows[i].clientName) === norm(visibleRows[j].clientName);
-            const isSameTv      = (i, j) => isSameClient(i, j) && norm(visibleRows[i].tvDisplay) === norm(visibleRows[j].tvDisplay);
-            const isSameSoft    = (i, j) => isSameTv(i, j) && (visibleRows[i].software || '') === (visibleRows[j].software || '');
-            const isSameRec     = (i, j) => isSameTv(i, j) && (visibleRows[i].recTime || '') === (visibleRows[j].recTime || '');
-
-            for (let r = 0; r < visibleRows.length; r++) {
-                const row = visibleRows[r];
-                const tr = document.createElement('tr');
-                tr.classList.add('pc-group-theme-' + (rowPcGroupMap[r] % 8));
-
-                const isPcStart      = (r === 0 || !isSamePc(r - 1, r));
-                const isNetworkStart = (r === 0 || !isSameNetwork(r - 1, r));
-
-                if (isPcStart && r !== 0) tr.classList.add('pc-group-start');
-                else if (isNetworkStart && r !== 0) tr.classList.add('network-group-start');
-
-                let html = '';
-
-                // PC No.
-                let pcSpan = 1, pcCamTotal = 0;
-                if (isPcStart) {
-                    while (r + pcSpan < visibleRows.length && isSamePc(r, r + pcSpan)) pcSpan++;
-                    for (let k = r; k < r + pcSpan; k++) pcCamTotal += parseCameraStringCount(visibleRows[k].camNumbers);
-                    html += `<td rowspan="${pcSpan}" class="cell-pc"><strong>${escapeHtml(row.pcNo)}</strong></td>`;
-                }
-
-                // Client Name
-                const isClientStart = (r === 0 || !isSameClient(r - 1, r));
-                if (isClientStart) {
-                    let clientSpan = 1;
-                    while (r + clientSpan < visibleRows.length && isSameClient(r, r + clientSpan)) clientSpan++;
-                    html += `<td rowspan="${clientSpan}" class="cell-client">${escapeHtml(row.clientName)}</td>`;
-                }
-
-                // Network
-                if (isNetworkStart) {
-                    let networkSpan = 1;
-                    while (r + networkSpan < visibleRows.length && isSameNetwork(r, r + networkSpan)) networkSpan++;
-                    html += `<td rowspan="${networkSpan}" class="cell-network"><strong>${escapeHtml(row.network)}</strong></td>`;
-                }
-
-                // TV Display
-                const isTvStart = (r === 0 || !isSameTv(r - 1, r));
-                let tvSpan = 1, tvCamTotal = 0;
-                if (isTvStart) {
-                    while (r + tvSpan < visibleRows.length && isSameTv(r, r + tvSpan)) tvSpan++;
-                    for (let k = r; k < r + tvSpan; k++) tvCamTotal += parseCameraStringCount(visibleRows[k].camNumbers);
-                    html += `<td rowspan="${tvSpan}" class="cell-tv">${escapeHtml(row.tvDisplay)}</td>`;
-                }
-
-                // Per-row
-                const camCount = parseCameraStringCount(row.camNumbers);
-                html += `
-                    <td>${escapeHtml(row.portNo)}</td>
-                    <td><code>${escapeHtml(row.camNumbers)}</code></td>
-                    <td><span class="badge">${camCount}</span></td>`;
-
-                // Display Total
-                if (isTvStart) html += `<td rowspan="${tvSpan}" class="cell-display-total">${tvCamTotal}</td>`;
-
-                // Cameras Total
-                if (isPcStart) html += `<td rowspan="${pcSpan}" class="cell-cameras-total">${pcCamTotal}</td>`;
-
-                // Software
-                const isSoftStart = (r === 0 || !isSameSoft(r - 1, r));
-                if (isSoftStart) {
-                    let softSpan = 1;
-                    while (r + softSpan < visibleRows.length && isSameSoft(r, r + softSpan)) softSpan++;
-                    html += `<td rowspan="${softSpan}">${escapeHtml(row.software || '-')}</td>`;
-                }
-
-                // Recording Time
-                const isRecStart = (r === 0 || !isSameRec(r - 1, r));
-                if (isRecStart) {
-                    let recSpan = 1;
-                    while (r + recSpan < visibleRows.length && isSameRec(r, r + recSpan)) recSpan++;
-                    html += `<td rowspan="${recSpan}" class="col-rec-time">${renderRecordingTimeCell(row.recTime)}</td>`;
-                }
-
-                // Actions
-                html += `
-                    <td class="col-actions admin-only">
-                        <div class="action-cell">
-                            <button class="btn btn-secondary btn-mini" title="Edit" onclick="openRowModal('${row.id}')">✏️</button>
-                            <button class="btn btn-danger btn-mini" title="Delete" onclick="openDeleteModal('${row.id}')">🗑️</button>
-                        </div>
-                    </td>`;
-
-                tr.innerHTML = html;
-                tbody.appendChild(tr);
-            }
+            input.classList.remove('rec-time-live','rec-time-closed','rec-time-custom');
         }
 
         function openRowModal(id = null) {
@@ -1321,7 +1094,7 @@
                 document.getElementById('formCamNumbers').value = '';
                 document.getElementById('formSoftware').value = '';
                 document.getElementById('recordingTimeList').innerHTML = '';
-                addRecordingTimeItem({type:'Live view', color:'red', start:'06:00', end:'18:00'});
+                addRecordingTimeItem({type:'Live view', color:'red', start:'06.00 AM', end:'06.00 PM'});
             }
             overlay.classList.add('active');
             document.getElementById('formPcNo').focus();
