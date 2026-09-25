@@ -116,6 +116,11 @@
             width: 320px;
             flex-shrink: 1;
         }
+        .unit-filter { display:inline-flex; align-items:center; gap:4px; padding:4px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-primary); flex-shrink:0; }
+        .unit-filter button { border:0; background:transparent; color:var(--text-main); padding:8px 12px; border-radius:7px; cursor:pointer; font-weight:600; }
+        .unit-filter button.active { background:var(--accent-color); color:#fff; }
+        .unit-filter button:hover:not(.active) { background:rgba(37,99,235,.08); }
+
         .search-container input {
             width: 100%;
             padding: 9px 14px 9px 38px;
@@ -769,6 +774,11 @@ tr.pc-group-start td { border-top:3px solid var(--border-color-strong) !importan
             </div>
             <div class="header-actions">
                 <span id="modeBadge" class="mode-badge mode-public">🌐 Public View</span>
+                <div class="unit-filter" aria-label="Unit filter">
+                    <button type="button" id="unitAll" class="active" onclick="setUnitFilter('ALL')">All Units</button>
+                    <button type="button" id="unit1" onclick="setUnitFilter('Unit 1')">Unit 1</button>
+                    <button type="button" id="unit2" onclick="setUnitFilter('Unit 2')">Unit 2</button>
+                </div>
                 <button class="btn btn-primary" id="btnAutoGroup" onclick="toggleAutoGroup()" title="Merge consecutive matching PC No., Network and Cameras Total cells">🔀 Auto-Group: ON</button>
                 <button class="btn btn-secondary" id="btnDownloadCsv" onclick="exportToCsv()" title="Download the current data as CSV">📥 Download CSV</button>
                 <button class="btn btn-secondary admin-only" onclick="exportBackup()" title="Download complete JSON backup">💾 Backup</button>
@@ -824,6 +834,7 @@ tr.pc-group-start td { border-top:3px solid var(--border-color-strong) !importan
             <div class="modal-body">
                 <input type="hidden" id="formRowId">
                 <div class="form-row">
+                    <div class="form-group"><label>Unit*</label><select id="formUnit"><option value="Unit 1">Unit 1</option><option value="Unit 2">Unit 2</option></select></div>
                     <div class="form-group"><label>PC No.*</label><input type="text" id="formPcNo" required placeholder="e.g., A5"></div>
                     <div class="form-group"><label>Client Name*</label><input type="text" id="formClientName" required placeholder="e.g., VAPL Faridabad"></div>
                 </div>
@@ -889,6 +900,7 @@ const DRAFT_KEY = 'cctv_admin_draft_v2';
 
 let systemRows = [];
 let currentSearchQuery = '';
+let currentUnitFilter = 'ALL';
 let pendingDeleteId = null;
 let autoGroupEnabled = true;
 
@@ -993,6 +1005,7 @@ function csvToRows(text) {
         const v = parseCsvLine(line);
         return {
             id: get(v, 'ID') || ('csv_' + n + '_' + Date.now()),
+            unit: get(v, 'Unit') || 'Unit 1',
             pcNo: get(v, 'PC No'),
             clientName: get(v, 'Client Name'),
             network: get(v, 'PC For Network'),
@@ -1028,7 +1041,15 @@ function naturalCompare(a, b) {
 }
 
 function sortRows() {
-    systemRows.sort((a,b) => naturalCompare(a.pcNo,b.pcNo) || naturalCompare(a.network,b.network) || naturalCompare(a.clientName,b.clientName) || naturalCompare(a.tvDisplay,b.tvDisplay) || naturalCompare(a.portNo,b.portNo));
+    systemRows.sort((a,b) => naturalCompare(a.unit || 'Unit 1',b.unit || 'Unit 1') || naturalCompare(a.pcNo,b.pcNo) || naturalCompare(a.network,b.network) || naturalCompare(a.clientName,b.clientName) || naturalCompare(a.tvDisplay,b.tvDisplay) || naturalCompare(a.portNo,b.portNo));
+}
+
+function setUnitFilter(unit) {
+    currentUnitFilter = unit || 'ALL';
+    ['unitAll','unit1','unit2'].forEach(id => document.getElementById(id)?.classList.remove('active'));
+    const id = currentUnitFilter === 'Unit 1' ? 'unit1' : currentUnitFilter === 'Unit 2' ? 'unit2' : 'unitAll';
+    document.getElementById(id)?.classList.add('active');
+    renderMatrix();
 }
 
 function toggleAutoGroup() {
@@ -1046,7 +1067,7 @@ function handleSearch() {
 
 function rowMatches(r) {
     if (!currentSearchQuery) return true;
-    return [r.pcNo,r.clientName,r.network,r.tvDisplay,r.portNo,r.camNumbers,r.software,r.recTime]
+    return [r.unit,r.pcNo,r.clientName,r.network,r.tvDisplay,r.portNo,r.camNumbers,r.software,r.recTime]
         .join(' ').toLowerCase().includes(currentSearchQuery);
 }
 
@@ -1057,7 +1078,7 @@ function renderMatrix() {
     // Always rebuild the visible hierarchy from the current data.
     // This is important after search/filter because old rowspans must never be reused.
     sortRows();
-    const rows = systemRows.filter(rowMatches);
+    const rows = systemRows.filter(r => (currentUnitFilter === 'ALL' || String(r.unit || 'Unit 1') === currentUnitFilter) && rowMatches(r));
     body.innerHTML = '';
 
     if (!rows.length) {
@@ -1070,8 +1091,8 @@ function renderMatrix() {
     // Keep the same PC -> theme mapping after search so A4 stays purple and A5 stays grey.
     const allPcValues = [...new Set(systemRows
         .slice()
-        .sort((a,b) => naturalCompare(a.pcNo,b.pcNo))
-        .map(r => String(r.pcNo || '')))];
+        .sort((a,b) => naturalCompare(a.unit || 'Unit 1',b.unit || 'Unit 1') || naturalCompare(a.pcNo,b.pcNo))
+        .map(r => `${r.unit || 'Unit 1'}|||${String(r.pcNo || '')}`))];
     const pcTheme = new Map(allPcValues.map((pc, index) => [pc, index % 8]));
 
     // Helper: build consecutive groups in the already-sorted visible rows.
@@ -1091,13 +1112,13 @@ function renderMatrix() {
     // Hierarchy:
     // PC -> Network -> Client -> TV
     // Port and Camera Numbers stay individual rows.
-    const pcGroups = makeGroups(rows, r => String(r.pcNo || ''));
-    const networkGroups = makeGroups(rows, r => `${r.pcNo}|||${r.network}`);
-    const clientGroups = makeGroups(rows, r => `${r.pcNo}|||${r.network}|||${r.clientName}`);
-    const tvGroups = makeGroups(rows, r => `${r.pcNo}|||${r.network}|||${r.clientName}|||${r.tvDisplay}`);
+    const pcGroups = makeGroups(rows, r => `${r.unit || 'Unit 1'}|||${String(r.pcNo || '')}`);
+    const networkGroups = makeGroups(rows, r => `${r.unit || 'Unit 1'}|||${r.pcNo}|||${r.network}`);
+    const clientGroups = makeGroups(rows, r => `${r.unit || 'Unit 1'}|||${r.pcNo}|||${r.network}|||${r.clientName}`);
+    const tvGroups = makeGroups(rows, r => `${r.unit || 'Unit 1'}|||${r.pcNo}|||${r.network}|||${r.clientName}|||${r.tvDisplay}`);
     // Software is independent data. Auto-Group must NOT hide a different software value.
     // Merge only consecutive identical software values inside the same PC group.
-    const softwareGroups = makeGroups(rows, r => `${r.pcNo}|||${String(r.software || '-').trim()}`);
+    const softwareGroups = makeGroups(rows, r => `${r.unit || 'Unit 1'}|||${r.pcNo}|||${String(r.software || '-').trim()}`);
 
     function groupAt(groups, rowIndex) {
         return groups.find(g => rowIndex >= g.start && rowIndex < g.end);
@@ -1136,7 +1157,7 @@ function renderMatrix() {
         const tvGroup = groupAt(tvGroups, rowIndex);
         const softwareGroup = groupAt(softwareGroups, rowIndex);
 
-        const pcIndex = pcTheme.get(String(r.pcNo || '')) ?? 0;
+        const pcIndex = pcTheme.get(`${r.unit || 'Unit 1'}|||${String(r.pcNo || '')}`) ?? 0;
         tr.className = `pc-group-theme-${pcIndex}` + (rowIndex === pcGroup.start ? " pc-group-start" : "");
 
         const cameraCount = parseCameraStringCount(r.camNumbers);
@@ -1266,6 +1287,7 @@ function openRowModal(id=null) {
     document.getElementById('modalTitle').textContent = id ? 'Modify Existing Configuration Row Matrix' : 'Append New Matrix Row Configuration';
     const r = id ? systemRows.find(x => String(x.id) === String(id)) : null;
     document.getElementById('formRowId').value = r ? r.id : '';
+    document.getElementById('formUnit').value = r?.unit || 'Unit 1';
     document.getElementById('formPcNo').value = r?.pcNo || '';
     document.getElementById('formClientName').value = r?.clientName || '';
     document.getElementById('formNetwork').value = r?.network || '';
@@ -1332,6 +1354,7 @@ function saveRow() {
     if (!IS_ADMIN) return;
     try {
         const id=document.getElementById('formRowId').value.trim();
+        const unit=document.getElementById('formUnit').value.trim() || 'Unit 1';
         const pcNo=document.getElementById('formPcNo').value.trim();
         const clientName=document.getElementById('formClientName').value.trim();
         const network=document.getElementById('formNetwork').value.trim();
@@ -1343,7 +1366,7 @@ function saveRow() {
         const times=collectRecordingTimes();
         if (!times.length) { alert('Please add at least one Recording Time.'); return; }
         const recTime=times.map(x=>JSON.stringify(x)).join(' || ');
-        const payload={pcNo,clientName,network,tvDisplay,portNo,camNumbers,software,recTime};
+        const payload={unit,pcNo,clientName,network,tvDisplay,portNo,camNumbers,software,recTime};
         if (id) {
             const i=systemRows.findIndex(x=>String(x.id)===String(id));
             if(i<0){alert('Row not found.');return;}
@@ -1388,10 +1411,10 @@ function escapeCsvField(v){const s=String(v??'');return /[",\r\n]/.test(s)?'"'+s
 function exportToCsv(){
     if(!IS_ADMIN)return;
     if(!systemRows.length){alert('No data to export.');return;}
-    const headers=['ID','PC No','Client Name','PC For Network','TV Display','Port No','Camera Numbers','No. of Cameras','Display Total','Cameras Total','Software','Recording Time'];
+    const headers=['ID','Unit','PC No','Client Name','PC For Network','TV Display','Port No','Camera Numbers','No. of Cameras','Display Total','Cameras Total','Software','Recording Time'];
     const lines=[headers.map(escapeCsvField).join(',')];
     systemRows.forEach(r=>lines.push([
-        r.id,r.pcNo,r.clientName,r.network,r.tvDisplay,r.portNo,r.camNumbers,parseCameraStringCount(r.camNumbers),r.displayTotal||parseCameraStringCount(r.camNumbers),r.camerasTotal||'',r.software,r.recTime
+        r.id,r.unit||'Unit 1',r.pcNo,r.clientName,r.network,r.tvDisplay,r.portNo,r.camNumbers,parseCameraStringCount(r.camNumbers),r.displayTotal||parseCameraStringCount(r.camNumbers),r.camerasTotal||'',r.software,r.recTime
     ].map(escapeCsvField).join(',')));
     const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
     const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='data.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
