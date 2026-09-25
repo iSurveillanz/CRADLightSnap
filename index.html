@@ -393,6 +393,13 @@
             .header-left .search-container { width:100%; max-width:none; }
             .header-actions { flex-wrap:wrap; }
         }
+
+        /* PUBLIC VIEW: hide all admin controls, including the Actions column */
+        body.public-mode .admin-only,
+        body.public-mode th.admin-only,
+        body.public-mode td.admin-only {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -535,6 +542,7 @@
         });
 
         function applyMode() {
+            document.body.classList.toggle('public-mode', !IS_ADMIN);
             document.querySelectorAll('.admin-only').forEach(el => {
                 el.style.display = IS_ADMIN ? '' : 'none';
             });
