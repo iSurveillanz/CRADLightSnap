@@ -724,6 +724,14 @@
     font-weight: 700;
 }
 
+
+/* Totals follow the PC No. group when Auto-Group is ON */
+#matrixBody td.pc-total-cell {
+    vertical-align: middle;
+    text-align: center;
+    font-weight: 700;
+}
+
 </style>
 </head>
 <body>
@@ -1034,53 +1042,78 @@ function renderMatrix() {
     }
     hideEmpty();
 
-    // When Auto-Group is ON, merge consecutive identical group values
-    // using real HTML rowspans. When OFF, every row is shown separately.
-    const groupColumns = [
-        { key: 'pcNo', index: 0 },
-        { key: 'network', index: 2 },
-        { key: 'camerasTotal', index: 8 }
-    ];
+    // Auto-Group follows PC No.
+    // For each consecutive PC No. group:
+    // - PC No. is merged
+    // - PC For Network is merged when consecutive values match
+    // - Display Total is calculated as the SUM for that PC No. and merged
+    // - Cameras Total is calculated as the SUM for that PC No. and merged
+    const pcGroups = [];
+    let i = 0;
+    while (i < rows.length) {
+        const pc = String(rows[i].pcNo || '');
+        let j = i + 1;
+        while (j < rows.length && String(rows[j].pcNo || '') === pc) j++;
 
-    const groups = {};
-    if (autoGroupEnabled) {
-        groupColumns.forEach(col => {
-            groups[col.key] = [];
-            let i = 0;
-            while (i < rows.length) {
-                const value = String(rows[i][col.key] || '');
-                let j = i + 1;
-                while (j < rows.length && String(rows[j][col.key] || '') === value) j++;
-                groups[col.key].push({ start: i, span: j - i, value });
-                i = j;
-            }
+        let cameraSum = 0;
+        let displaySum = 0;
+
+        for (let k = i; k < j; k++) {
+            const cameraCount = parseCameraStringCount(rows[k].camNumbers);
+            cameraSum += Number.isFinite(cameraCount) ? cameraCount : 0;
+
+            const displayValue = Number(String(rows[k].displayTotal || '').replace(/[^\d.-]/g, ''));
+            displaySum += Number.isFinite(displayValue) ? displayValue : cameraCount;
+        }
+
+        pcGroups.push({
+            start: i,
+            end: j,
+            span: j - i,
+            pcNo: pc,
+            cameraSum,
+            displaySum
         });
+        i = j;
+    }
+
+    const networkGroups = [];
+    i = 0;
+    while (i < rows.length) {
+        const value = String(rows[i].network || '');
+        let j = i + 1;
+        while (j < rows.length && String(rows[j].network || '') === value) j++;
+        networkGroups.push({ start: i, end: j, span: j - i, value });
+        i = j;
     }
 
     rows.forEach((r, rowIndex) => {
         const tr = document.createElement('tr');
+        const pcGroup = pcGroups.find(g => rowIndex >= g.start && rowIndex < g.end);
+        const networkGroup = networkGroups.find(g => rowIndex >= g.start && rowIndex < g.end);
+
+        const cameraCount = parseCameraStringCount(r.camNumbers);
+        const rowDisplayTotal = r.displayTotal || String(cameraCount);
 
         let pcCell = '';
         let networkCell = '';
+        let displayTotalCell = '';
         let camerasTotalCell = '';
 
         if (!autoGroupEnabled) {
             pcCell = `<td class="pc-cell"><strong>${escapeHtml(r.pcNo)}</strong></td>`;
             networkCell = `<td><strong>${escapeHtml(r.network)}</strong></td>`;
-            camerasTotalCell = `<td>${escapeHtml(r.camerasTotal || '')}</td>`;
+            displayTotalCell = `<td>${escapeHtml(rowDisplayTotal)}</td>`;
+            camerasTotalCell = `<td>${escapeHtml(r.camerasTotal || String(cameraCount))}</td>`;
         } else {
-            const pcGroup = groups.pcNo.find(g => g.start === rowIndex);
-            const netGroup = groups.network.find(g => g.start === rowIndex);
-            const camGroup = groups.camerasTotal.find(g => g.start === rowIndex);
+            if (rowIndex === pcGroup.start) {
+                pcCell = `<td class="pc-cell" rowspan="${pcGroup.span}"><strong>${escapeHtml(pcGroup.pcNo)}</strong></td>`;
+                displayTotalCell = `<td class="pc-total-cell" rowspan="${pcGroup.span}"><strong>${pcGroup.displaySum}</strong></td>`;
+                camerasTotalCell = `<td class="pc-total-cell" rowspan="${pcGroup.span}"><strong>${pcGroup.cameraSum}</strong></td>`;
+            }
 
-            if (pcGroup) {
-                pcCell = `<td class="pc-cell" rowspan="${pcGroup.span}"><strong>${escapeHtml(r.pcNo)}</strong></td>`;
-            }
-            if (netGroup) {
-                networkCell = `<td rowspan="${netGroup.span}"><strong>${escapeHtml(r.network)}</strong></td>`;
-            }
-            if (camGroup) {
-                camerasTotalCell = `<td rowspan="${camGroup.span}">${escapeHtml(r.camerasTotal || '')}</td>`;
+            if (rowIndex === networkGroup.start) {
+                networkCell = `<td rowspan="${networkGroup.span}"><strong>${escapeHtml(networkGroup.value)}</strong></td>`;
             }
         }
 
@@ -1091,8 +1124,8 @@ function renderMatrix() {
             <td>${escapeHtml(r.tvDisplay)}</td>
             <td>${escapeHtml(r.portNo)}</td>
             <td>${escapeHtml(r.camNumbers)}</td>
-            <td><span class="camera-count">${parseCameraStringCount(r.camNumbers)}</span></td>
-            <td>${escapeHtml(r.displayTotal || String(parseCameraStringCount(r.camNumbers)))}</td>
+            <td><span class="camera-count">${cameraCount}</span></td>
+            ${displayTotalCell}
             ${camerasTotalCell}
             <td>${escapeHtml(r.software)}</td>
             <td>${renderRecordingTimeCell(r.recTime)}</td>
