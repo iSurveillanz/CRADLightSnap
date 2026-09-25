@@ -844,666 +844,389 @@
     </div>
 
     <script>
-        const IS_ADMIN = new URLSearchParams(window.location.search).get('admin') === '1';
-        const DATA_CSV_URL = 'data.csv';
+const IS_ADMIN = new URLSearchParams(window.location.search).get('admin') === '1';
+const DATA_CSV_URL = './data.csv';
+const DRAFT_KEY = 'cctv_admin_draft_v2';
 
-        let systemRows = [];
-        let recordingTimeItems = [];
-        
-        let currentSearchQuery = '';
-        let pendingDeleteId = null;
-        let autoGroupEnabled = true;
+let systemRows = [];
+let currentSearchQuery = '';
+let pendingDeleteId = null;
+let autoGroupEnabled = true;
 
-        // GitHub CSV workflow:
-        // Public: index.html -> reads data.csv
-        // Admin: index.html?admin=1 -> Add/Edit/Delete + Download CSV
-        const DATA_CSV_URL = './data.csv';
-        const IS_ADMIN = new URLSearchParams(window.location.search).get('admin') === '1';
+window.addEventListener('DOMContentLoaded', init);
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            initTheme();
-            applyMode();
-            await loadDataFromCsv();
-            applySorting();
-            renderMatrix();
+async function init() {
+    initTheme();
+    applyMode();
+    bindKeyboard();
+    await loadData();
+    renderMatrix();
+}
 
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    if (document.getElementById('modalRow').classList.contains('active')) closeRowModal();
-                    if (document.getElementById('modalDelete').classList.contains('active')) closeDeleteModal();
-                } else if (e.key === 'Enter') {
-                    if (IS_ADMIN && document.getElementById('modalRow').classList.contains('active')) saveRow();
-                    else if (IS_ADMIN && document.getElementById('modalDelete').classList.contains('active')) confirmDeleteRow();
-                }
-            });
-        });
-
-        function applyMode() {
-            document.body.classList.toggle('public-mode', !IS_ADMIN);
-            document.querySelectorAll('.admin-only').forEach(el => {
-                el.style.display = IS_ADMIN ? '' : 'none';
-            });
-            const badge = document.getElementById('modeBadge');
-            const note = document.getElementById('publicNote');
-            if (IS_ADMIN) {
-                badge.className = 'mode-badge mode-admin';
-                badge.textContent = '🔐 Admin Mode';
-                if (note) {
-                    note.innerHTML = '🔐 Admin mode — Add / Edit / Delete locally, then <strong>Download CSV</strong> and replace <strong>data.csv</strong> on GitHub.';
-                }
-            }
-        }
-
-        function parseCsvLine(line) {
-            const out = [];
-            let cur = '', quoted = false;
-            for (let i = 0; i < line.length; i++) {
-                const ch = line[i];
-                if (ch === '"') {
-                    if (quoted && line[i + 1] === '"') { cur += '"'; i++; }
-                    else quoted = !quoted;
-                } else if (ch === ',' && !quoted) {
-                    out.push(cur); cur = '';
-                } else cur += ch;
-            }
-            out.push(cur);
-            return out;
-        }
-
-        function csvToRows(csvText) {
-            const lines = csvText.replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim() !== '');
-            if (lines.length < 2) return [];
-            const headers = parseCsvLine(lines[0]).map(h => h.trim());
-            return lines.slice(1).map((line, idx) => {
-                const vals = parseCsvLine(line);
-                const obj = {};
-                headers.forEach((h, i) => obj[h] = (vals[i] ?? '').trim());
-                return {
-                    id: obj.ID || ('csv_' + idx + '_' + Date.now()),
-                    pcNo: obj['PC No'] || '',
-                    clientName: obj['Client Name'] || '',
-                    network: obj['PC For Network'] || '',
-                    tvDisplay: obj['TV Display'] || '',
-                    portNo: obj['Port No'] || '',
-                    camNumbers: obj['Camera Numbers'] || '',
-                    software: obj['Software'] || '',
-                    recTime: obj['Recording Time'] || ''
-                };
-            });
-        }
-
-        async function loadDataFromCsv() {
-            try {
-                const response = await fetch(DATA_CSV_URL + '?v=' + Date.now(), { cache: 'no-store' });
-                if (!response.ok) throw new Error('data.csv not found');
-                const csv = await response.text();
-                const rows = csvToRows(csv);
-                if (!rows.length) throw new Error('data.csv is empty');
-                systemRows = rows;
-            } catch (err) {
-                console.error(err);
-                systemRows = [];
-                document.getElementById('tableEmptyState').style.display = 'block';
-                document.getElementById('tableEmptyState').textContent =
-                    'Could not load data.csv. Please upload <strong>data.csv</strong> to the same GitHub folder as <strong>index.html</strong>.';
-            }
-        }
-
-        function escapeHtml(str) {
-            if (str === null || str === undefined) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        function persistState() {
-            if (IS_ADMIN) localStorage.setItem('cctv_admin_draft', JSON.stringify(systemRows));
-        }
-
-
-        function parseCsvLine(line) {
-            const out = [];
-            let cur = '', quoted = false;
-            for (let i = 0; i < line.length; i++) {
-                const ch = line[i];
-                if (ch === '"') {
-                    if (quoted && line[i + 1] === '"') { cur += '"'; i++; }
-                    else quoted = !quoted;
-                } else if (ch === ',' && !quoted) {
-                    out.push(cur); cur = '';
-                } else cur += ch;
-            }
-            out.push(cur);
-            return out;
-        }
-
-        function csvToRows(text) {
-            const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(x => x.trim());
-            if (lines.length < 2) return [];
-            const headers = parseCsvLine(lines[0]).map(x => x.trim());
-            const idx = (name) => headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
-
-            return lines.slice(1).map((line, n) => {
-                const v = parseCsvLine(line);
-                const get = (name) => {
-                    const i = idx(name);
-                    return i >= 0 ? (v[i] || '').trim() : '';
-                };
-                return {
-                    id: get('ID') || ('csv_' + n + '_' + Date.now()),
-                    pcNo: get('PC No'),
-                    clientName: get('Client Name'),
-                    network: get('PC For Network'),
-                    tvDisplay: get('TV Display'),
-                    portNo: get('Port No'),
-                    camNumbers: get('Camera Numbers'),
-                    software: get('Software'),
-                    recTime: get('Recording Time')
-                };
-            }).filter(r => r.pcNo || r.clientName);
-        }
-
-        function parseCameraStringCount(camStr) {
-            if (!camStr) return 0;
-            const uniqueInRow = new Set();
-            const normalized = String(camStr).toLowerCase().replace(/\s+to\s+/g, '-').replace(/\s+/g, '');
-            const segments = normalized.split(',');
-            segments.forEach(seg => {
-                if (seg.includes('-')) {
-                    const rangeParts = seg.split('-');
-                    if (rangeParts.length === 2) {
-                        const start = parseInt(rangeParts[0], 10);
-                        const end = parseInt(rangeParts[1], 10);
-                        if (!isNaN(start) && !isNaN(end)) {
-                            for (let i = Math.min(start, end); i <= Math.max(start, end); i++) uniqueInRow.add(i);
-                        }
-                    }
-                } else {
-                    const singleNum = parseInt(seg, 10);
-                    if (!isNaN(singleNum)) uniqueInRow.add(singleNum);
-                }
-            });
-            return uniqueInRow.size;
-        }
-
-        function handleSearch() {
-            currentSearchQuery = document.getElementById('globalSearch').value.toLowerCase().trim();
-            renderMatrix();
-        }
-
-        /* Natural Alphanumeric Comparator */
-        function naturalCompare(a, b) {
-            const sa = (a || '').trim().toUpperCase();
-            const sb = (b || '').trim().toUpperCase();
-            if (sa === sb) return 0;
-            const chunksA = sa.match(/(\d+|[^\d]+)/g) || [''];
-            const chunksB = sb.match(/(\d+|[^\d]+)/g) || [''];
-            const len = Math.min(chunksA.length, chunksB.length);
-            for (let i = 0; i < len; i++) {
-                const ca = chunksA[i], cb = chunksB[i];
-                const isNumA = /^\d+$/.test(ca), isNumB = /^\d+$/.test(cb);
-                if (isNumA && isNumB) {
-                    const diff = parseInt(ca, 10) - parseInt(cb, 10);
-                    if (diff !== 0) return diff;
-                    if (ca.length !== cb.length) return ca.length - cb.length;
-                } else {
-                    if (ca < cb) return -1;
-                    if (ca > cb) return 1;
-                }
-            }
-            return chunksA.length - chunksB.length;
-        }
-
-        /* Sorting — ALWAYS applied. Auto-Group controls depth. */
-        function applySorting() {
-            if (!systemRows || systemRows.length === 0) return;
-            if (autoGroupEnabled) {
-                systemRows.sort((a, b) =>
-                    naturalCompare(a.pcNo, b.pcNo)
-                    || naturalCompare(a.network, b.network)
-                    || naturalCompare(a.clientName, b.clientName)
-                    || naturalCompare(a.tvDisplay, b.tvDisplay)
-                    || naturalCompare(a.portNo, b.portNo)
-                );
-            } else {
-                systemRows.sort((a, b) => naturalCompare(a.pcNo, b.pcNo));
-            }
-            persistState();
-        }
-
-        function toggleAutoGroup() {
-            autoGroupEnabled = !autoGroupEnabled;
-            const btn = document.getElementById('btnAutoGroup');
-            if (autoGroupEnabled) {
-                btn.className = 'btn btn-primary';
-                btn.innerHTML = '🔀 Auto-Group: ON';
-            } else {
-                btn.className = 'btn btn-secondary';
-                btn.innerHTML = '🔀 Auto-Group: OFF';
-            }
-            applySorting();
-            renderMatrix();
-        }
-
-        function formatTimeForRecording(value) {
-            return String(value || '').trim();
-        }
-
-        function updateRecordingTimeEditor() {
-            updateRecordingTimeListPreview();
-        }
-
-
-        function makeRecordingTimeItem(data = {}) {
-            const type = data.type || 'Live view';
-            const color = data.color || 'red';
-            const start = data.start || '06:00';
-            const end = data.end || '18:00';
-
-            const wrap = document.createElement('div');
-            wrap.className = 'recording-time-item';
-            wrap.innerHTML = `
-                <input class="rt-type" type="text" value="${escapeHtml(type)}" placeholder="Type / Name">
-                <select class="rt-color">
-                    <option value="red" ${color === 'red' ? 'selected' : ''}>🔴 Red</option>
-                    <option value="green" ${color === 'green' ? 'selected' : ''}>🟢 Green</option>
-                    <option value="blue" ${color === 'blue' ? 'selected' : ''}>🔵 Blue</option>
-                    <option value="orange" ${color === 'orange' ? 'selected' : ''}>🟠 Orange</option>
-                </select>
-                <input class="rt-start" type="text" value="${escapeHtml(start)}" placeholder="06.00 AM">
-                <input class="rt-end" type="text" value="${escapeHtml(end)}" placeholder="06.00 PM">
-                <button type="button" class="recording-time-remove">🗑️</button>
-            `;
-
-            wrap.querySelectorAll('input,select').forEach(el => {
-                el.addEventListener('input', updateRecordingTimeListPreview);
-                el.addEventListener('change', updateRecordingTimeListPreview);
-            });
-            wrap.querySelector('.recording-time-remove').addEventListener('click', () => {
-                wrap.remove();
-                updateRecordingTimeListPreview();
-            });
-
-            return wrap;
-        }
-
-        function addRecordingTimeItem(data = {}) {
-            const list = document.getElementById('recordingTimeList');
-            if (!list) return;
-            list.appendChild(makeRecordingTimeItem(data));
-            updateRecordingTimeListPreview();
-        }
-
-        function recordingTimeItemsToText() {
-            const list = document.getElementById('recordingTimeList');
-            if (!list) return '';
-
-            const values = [];
-            list.querySelectorAll('.recording-time-item').forEach(item => {
-                const type = item.querySelector('.rt-type').value.trim() || 'New Type';
-                const color = item.querySelector('.rt-color').value;
-                const start = item.querySelector('.rt-start').value;
-                const end = item.querySelector('.rt-end').value;
-                const base = formatTimeForRecording(start) + ' To ' + formatTimeForRecording(end);
-                values.push(JSON.stringify({ type, color, start, end, base }));
-            });
-            return values.join(' || ');
-        }
-
-        function parseRecordingTimeEntries(value) {
-            const raw = String(value || '');
-            if (!raw) return [];
-
-            // New format.
-            const jsonParts = raw.split(/\s*\|\|\s*/).filter(Boolean);
-            const parsed = [];
-            let allJson = true;
-
-            jsonParts.forEach(part => {
-                try {
-                    const obj = JSON.parse(part);
-                    if (obj && obj.type && obj.color && obj.start && obj.end) parsed.push(obj);
-                    else allJson = false;
-                } catch (e) {
-                    allJson = false;
-                }
-            });
-            if (allJson && parsed.length) return parsed;
-
-            // Backward-compatible parsing of older text.
-            return raw.split(/\s*\|\s*/).filter(Boolean).map(entry => {
-                const m = entry.match(/(\d{1,2})[.:](\d{2})\s*(AM|PM)\s+TO\s+(\d{1,2})[.:](\d{2})\s*(AM|PM)/i);
-                let start='18:00', end='06:00';
-                if (m) {
-                    const to24=(h,min,ap)=>{
-                        h=Number(h); min=Number(min);
-                        if(ap.toUpperCase()==='AM') h=h===12?0:h;
-                        else h=h===12?12:h+12;
-                        return String(h).padStart(2,'0')+':'+String(min).padStart(2,'0');
-                    };
-                    start=to24(m[1],m[2],m[3]);
-                    end=to24(m[4],m[5],m[6]);
-                }
-                const upper=entry.toUpperCase();
-                const color=upper.includes('CLOSED')?'green':upper.includes('LIVE')?'red':'blue';
-                const tm=entry.match(/\(([^()]*)\)\s*$/);
-                return {type: tm ? tm[1] : 'New Type', color, start, end};
-            });
-        }
-
-        function textToRecordingTimeItems(value) {
-            const list = document.getElementById('recordingTimeList');
-            if (!list) return;
-            list.innerHTML = '';
-            const entries = parseRecordingTimeEntries(value);
-            if (!entries.length) {
-                addRecordingTimeItem({type:'Live view', color:'red', start:'06.00 AM', end:'06.00 PM'});
-                return;
-            }
-            entries.forEach(entry => addRecordingTimeItem(entry));
-        }
-
-        function updateRecordingTimeListPreview() {
-            const preview = document.getElementById('recordingTimePreview');
-            if (!preview) return;
-            preview.innerHTML = '';
-
-            document.querySelectorAll('#recordingTimeList .recording-time-item').forEach(item => {
-                const type = item.querySelector('.rt-type').value.trim() || 'New Type';
-                const color = item.querySelector('.rt-color').value;
-                const start = item.querySelector('.rt-start').value;
-                const end = item.querySelector('.rt-end').value;
-                const icon = color === 'red' ? '🔴' : color === 'green' ? '🟢' : color === 'blue' ? '🔵' : '🟠';
-                const row = document.createElement('div');
-                row.className = 'recording-preview-row ' + color;
-                row.textContent = icon + ' ' + formatTimeForRecording(start) + ' To ' + formatTimeForRecording(end) + ' - ' + type;
-                preview.appendChild(row);
-            });
-        }
-
-        function renderRecordingTimeCell(value) {
-            const entries = parseRecordingTimeEntries(value);
-            if (!entries.length) return '<span>-</span>';
-
-            return '<div class="rec-time-stack">' + entries.map(entry => {
-                const icon = entry.color === 'red' ? '🔴' : entry.color === 'green' ? '🟢' : entry.color === 'blue' ? '🔵' : '🟠';
-                const base = entry.base || (formatTimeForRecording(entry.start) + ' To ' + formatTimeForRecording(entry.end));
-                return '<span class="rec-line ' + entry.color + '">' +
-                    icon + ' ' + escapeHtml(base) + ' - ' + escapeHtml(entry.type) +
-                    '</span>';
-            }).join('') + '</div>';
-        }
-
-        function getRecordingTimeClass(value) {
-            const s = String(value || '').trim().toUpperCase().replace(/\s+/g, ' ');
-            if (!s) return 'rec-time-custom';
-
-            // Green: Live Main view
-            if (s.includes('06.00 PM TO 06.00 AM') ||
-                s.includes('06:00 PM TO 06:00 AM') ||
-                s.includes('LIVE MAIN VIEW')) {
-                return 'rec-time-live';
-            }
-
-            // Red: Closed off TV / restore
-            if (s.includes('06.01 AM TO 9.00 AM') ||
-                s.includes('06.01 AM TO 09.00 AM') ||
-                s.includes('06:01 AM TO 9:00 AM') ||
-                s.includes('06:01 AM TO 09:00 AM') ||
-                s.includes('CLOSED OFF TV/RESTORE') ||
-                s.includes('CLOSED OFF TV / RESTORE')) {
-                return 'rec-time-closed';
-            }
-
-            // New/custom text is allowed and remains neutral.
-            return 'rec-time-custom';
-        }
-
-        function updateRecordingTimeColor(input) {
-            if (!input) return;
-            input.classList.remove('rec-time-live','rec-time-closed','rec-time-custom');
-        }
-
-        function openRowModal(id = null) {
-            if (!IS_ADMIN) return;
-            const overlay = document.getElementById('modalRow');
-            const title = document.getElementById('modalTitle');
-
-            if (id) {
-                title.innerText = "Modify Existing Configuration Row Matrix";
-                const r = systemRows.find(item => String(item.id) === String(id));
-                if (!r) return;
-
-                document.getElementById('formRowId').value = r.id;
-                document.getElementById('formPcNo').value = r.pcNo || '';
-                document.getElementById('formClientName').value = r.clientName || '';
-                document.getElementById('formNetwork').value = r.network || '';
-                document.getElementById('formTvDisplay').value = r.tvDisplay || '';
-                document.getElementById('formPortNo').value = r.portNo || '';
-                document.getElementById('formCamNumbers').value = r.camNumbers || '';
-                document.getElementById('formSoftware').value = r.software || '';
-                recordingTimeItems = parseRecordingTimes(r.recTime || '');
-            } else {
-                title.innerText = "Append New Matrix Row Configuration";
-                document.getElementById('formRowId').value = '';
-                document.getElementById('formPcNo').value = '';
-                document.getElementById('formClientName').value = '';
-                document.getElementById('formNetwork').value = '';
-                document.getElementById('formTvDisplay').value = '';
-                document.getElementById('formPortNo').value = '';
-                document.getElementById('formCamNumbers').value = '';
-                document.getElementById('formSoftware').value = '';
-                recordingTimeItems = [];
-                addRecordingTimeItem(false);
-            }
-
-            renderRecordingTimeEditor();
-            overlay.classList.add('active');
-            document.getElementById('formPcNo').focus();
-        }
-
-        function closeRowModal() { document.getElementById('modalRow').classList.remove('active'); }
-
-        function saveRow() {
-            const id = document.getElementById('formRowId').value.trim();
-            const pcNo = document.getElementById('formPcNo').value.trim();
-            const clientName = document.getElementById('formClientName').value.trim();
-            const network = document.getElementById('formNetwork').value.trim();
-            const tvDisplay = document.getElementById('formTvDisplay').value.trim();
-            const portNo = document.getElementById('formPortNo').value.trim();
-            const camNumbers = document.getElementById('formCamNumbers').value.trim();
-            const software = document.getElementById('formSoftware').value.trim();
-
-            if (!pcNo || !clientName || !network || !tvDisplay || !portNo || !camNumbers) {
-                alert('All required fields marked with * must be filled.');
-                return;
-            }
-
-            const recTime = recordingTimeItems
-                .map(x => [x.type, x.color, x.start, x.end].join('|'))
-                .join(' || ');
-
-            const payload = { pcNo, clientName, network, tvDisplay, portNo, camNumbers, software, recTime };
-
-            if (id) {
-                const idx = systemRows.findIndex(item => String(item.id) === String(id));
-                if (idx === -1) {
-                    alert('Row not found. Please close the window and click Edit again.');
-                    return;
-                }
-                systemRows[idx] = { ...systemRows[idx], ...payload };
-            } else {
-                systemRows.push({ id: 'row_' + Date.now() + '_' + Math.random().toString(36).slice(2,8), ...payload });
-            }
-
-            persistState();
-            applySorting();
-            renderMatrix();
+function bindKeyboard() {
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
             closeRowModal();
-            alert('Saved successfully. Click Download CSV to create the updated data.csv.');
-        }
-
-        function parseRecordingTimes(value) {
-            if (!value) return [];
-            return String(value).split(/\s*\|\|\s*/).map(part => {
-                const p = part.split('|');
-                if (p.length >= 4) return { type:p[0], color:p[1] || 'blue', start:p[2], end:p[3] };
-                return { type:part, color:'blue', start:'', end:'' };
-            }).filter(x => x.type || x.start || x.end);
-        }
-
-        function addRecordingTimeItem(render = true) {
-            recordingTimeItems.push({ type:'Live view', color:'red', start:'06.00 AM', end:'06.00 PM' });
-            if (render) renderRecordingTimeEditor();
-        }
-
-        function renderRecordingTimeEditor() {
-            const box = document.getElementById('recordingTimeList');
-            box.innerHTML = '';
-
-            recordingTimeItems.forEach((item, index) => {
-                const row = document.createElement('div');
-                row.className = 'recording-time-item';
-                row.innerHTML = `
-                    <input value="${escapeHtml(item.type)}" placeholder="Type / Name">
-                    <select>
-                        <option value="red" ${item.color==='red'?'selected':''}>🔴 Red</option>
-                        <option value="green" ${item.color==='green'?'selected':''}>🟢 Green</option>
-                        <option value="blue" ${item.color==='blue'?'selected':''}>🔵 Blue</option>
-                        <option value="orange" ${item.color==='orange'?'selected':''}>🟠 Orange</option>
-                    </select>
-                    <input value="${escapeHtml(item.start)}" placeholder="Start time">
-                    <input value="${escapeHtml(item.end)}" placeholder="End time">
-                    <button type="button" class="btn btn-danger btn-mini" title="Delete time">🗑️</button>
-                `;
-
-                const inputs = row.querySelectorAll('input');
-                inputs[0].oninput = e => { recordingTimeItems[index].type = e.target.value; };
-                inputs[1].oninput = e => { recordingTimeItems[index].start = e.target.value; };
-                inputs[2].oninput = e => { recordingTimeItems[index].end = e.target.value; };
-                row.querySelector('select').onchange = e => { recordingTimeItems[index].color = e.target.value; };
-                row.querySelector('button').onclick = () => {
-                    recordingTimeItems.splice(index, 1);
-                    renderRecordingTimeEditor();
-                };
-
-                box.appendChild(row);
-            });
-
-            const preview = document.createElement('div');
-            preview.className = 'recording-time-preview';
-            recordingTimeItems.forEach(item => {
-                const p = document.createElement('div');
-                p.className = 'recording-time-preview-item rt-' + (item.color || 'blue');
-                p.textContent = `${item.start || ''} To ${item.end || ''} - ${item.type || ''}`;
-                preview.appendChild(p);
-            });
-            box.appendChild(preview);
-        }
-
-        function openDeleteModal(id) {
-            if (!IS_ADMIN) return;
-            const row = systemRows.find(item => item.id === id);
-            if (!row) return;
-            pendingDeleteId = id;
-            document.getElementById('deleteClientName').innerText = row.clientName || '-';
-            document.getElementById('deletePortNo').innerText = row.portNo || '-';
-            document.getElementById('deleteCamNumbers').innerText = row.camNumbers || '-';
-            document.getElementById('modalDelete').classList.add('active');
-        }
-
-        function closeDeleteModal() { pendingDeleteId = null; document.getElementById('modalDelete').classList.remove('active'); }
-
-        function confirmDeleteRow() {
-            if (!IS_ADMIN || !pendingDeleteId) return;
-            systemRows = systemRows.filter(item => String(item.id) !== String(pendingDeleteId));
-            persistState();
-            renderMatrix();
             closeDeleteModal();
         }
-
-        function escapeCsvField(val) {
-            if (val === null || val === undefined) return '';
-            let str = String(val);
-            if (/[",\r\n]/.test(str)) str = '"' + str.replace(/"/g, '""') + '"';
-            return str;
+        if (e.key === 'Enter' && IS_ADMIN && document.getElementById('modalRow').classList.contains('active')) {
+            // Do not submit while typing in a time/name input.
+            if (e.target && e.target.tagName !== 'TEXTAREA') saveRow();
         }
+    });
+}
 
-        function exportToCsv() {
-            if (!IS_ADMIN) return;
-            if (!systemRows.length) { alert('No data.'); return; }
+function applyMode() {
+    document.body.classList.toggle('public-mode', !IS_ADMIN);
+    document.querySelectorAll('.admin-only').forEach(el => {
+        el.style.display = IS_ADMIN ? '' : 'none';
+    });
+    const badge = document.getElementById('modeBadge');
+    const note = document.getElementById('publicNote');
+    if (IS_ADMIN) {
+        badge.className = 'mode-badge mode-admin';
+        badge.textContent = '🔐 Admin Mode';
+        note.innerHTML = '🔐 Admin mode — Add / Edit / Delete here. Save updates this page. Download CSV to publish the changes.';
+    } else {
+        badge.className = 'mode-badge mode-public';
+        badge.textContent = '🌐 Public View';
+        note.innerHTML = '🌐 Public View — View and search only. Editing is disabled.';
+    }
+    const download = document.getElementById('btnDownloadCsv');
+    if (download) download.style.display = IS_ADMIN ? '' : 'none';
+}
 
-            const headers = ["ID","PC No","Client Name","PC For Network","TV Display","Port No","Camera Numbers","No. of Cameras","Software","Recording Time"];
-            const csvRows = [headers.map(escapeCsvField).join(",")];
-
-            systemRows.forEach(r => {
-                csvRows.push([
-                    r.id || '',
-                    r.pcNo || '',
-                    r.clientName || '',
-                    r.network || '',
-                    r.tvDisplay || '',
-                    r.portNo || '',
-                    r.camNumbers || '',
-                    parseCameraStringCount(r.camNumbers),
-                    r.software || '',
-                    r.recTime || ''
-                ].map(escapeCsvField).join(","));
-            });
-
-            const blob = new Blob(["\uFEFF" + csvRows.join("\r\n")], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "data.csv";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+async function loadData() {
+    // Admin deliberately loads the GitHub CSV as the source of truth.
+    // A saved draft is used only when CSV cannot be loaded, so a refresh does not erase a just-saved draft.
+    try {
+        const response = await fetch(DATA_CSV_URL + '?v=' + Date.now(), { cache: 'no-store' });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const text = await response.text();
+        const rows = csvToRows(text);
+        if (!rows.length) throw new Error('CSV contains no records');
+        systemRows = rows;
+        if (IS_ADMIN) localStorage.setItem(DRAFT_KEY, JSON.stringify(systemRows));
+    } catch (err) {
+        console.warn('CSV load failed:', err);
+        if (IS_ADMIN) {
+            try {
+                const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+                if (Array.isArray(draft)) {
+                    systemRows = draft;
+                    return;
+                }
+            } catch (_) {}
         }
+        systemRows = [];
+        showEmpty('Could not load data.csv. Put data.csv in the same GitHub folder as index.html.');
+    }
+}
 
-        function exportBackup() {
-            if (systemRows.length === 0) { alert('No data.'); return; }
-            const blob = new Blob([JSON.stringify(systemRows, null, 2)], { type: 'application/json;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a"); a.href = url; a.download = `cctv_backup_${new Date().toISOString().slice(0,10)}.json`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-        }
+function parseCsvLine(line) {
+    const out = [];
+    let cur = '';
+    let quoted = false;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+            if (quoted && line[i + 1] === '"') { cur += '"'; i++; }
+            else quoted = !quoted;
+        } else if (ch === ',' && !quoted) {
+            out.push(cur); cur = '';
+        } else cur += ch;
+    }
+    out.push(cur);
+    return out;
+}
 
-        function importBackup(event) {
-            if (!IS_ADMIN) return;
-            const file = event.target.files && event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const imported = JSON.parse(e.target.result);
-                    if (!Array.isArray(imported)) { alert('Invalid: must be array.'); return; }
-                    if (!imported.every(i => i && typeof i === 'object' && 'pcNo' in i && 'clientName' in i)) { alert('Invalid format.'); return; }
-                    if (confirm(`Replace ${systemRows.length} entries with ${imported.length} from "${file.name}"?`)) {
-                        systemRows = imported;
-                        persistState();
-                        applySorting();
-                        renderMatrix();
-                        alert(`Restored ${systemRows.length} records.`);
-                    }
-                } catch (err) { alert('Parse error: ' + err.message); }
-                finally { event.target.value = ''; }
-            };
-            reader.readAsText(file);
-        }
+function csvToRows(text) {
+    const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(x => x.trim());
+    if (lines.length < 2) return [];
+    const headers = parseCsvLine(lines[0]).map(x => x.trim());
+    const index = {};
+    headers.forEach((h, i) => index[h.toLowerCase()] = i);
+    const get = (vals, name) => {
+        const i = index[name.toLowerCase()];
+        return i == null ? '' : String(vals[i] ?? '').trim();
+    };
+    return lines.slice(1).map((line, n) => {
+        const v = parseCsvLine(line);
+        return {
+            id: get(v, 'ID') || ('csv_' + n + '_' + Date.now()),
+            pcNo: get(v, 'PC No'),
+            clientName: get(v, 'Client Name'),
+            network: get(v, 'PC For Network'),
+            tvDisplay: get(v, 'TV Display'),
+            portNo: get(v, 'Port No'),
+            camNumbers: get(v, 'Camera Numbers'),
+            displayTotal: get(v, 'Display Total'),
+            camerasTotal: get(v, 'Cameras Total'),
+            software: get(v, 'Software'),
+            recTime: get(v, 'Recording Time')
+        };
+    }).filter(r => r.pcNo || r.clientName);
+}
 
-        function initTheme() {
-            document.documentElement.setAttribute('data-theme', localStorage.getItem('cctv_theme_config') || 'light');
+function persistState() {
+    if (!IS_ADMIN) return;
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(systemRows));
+}
+
+function naturalCompare(a, b) {
+    const A = String(a || '').toUpperCase();
+    const B = String(b || '').toUpperCase();
+    const aa = A.match(/\d+|\D+/g) || [''];
+    const bb = B.match(/\d+|\D+/g) || [''];
+    for (let i = 0; i < Math.max(aa.length, bb.length); i++) {
+        const x = aa[i] || '', y = bb[i] || '';
+        if (/^\d+$/.test(x) && /^\d+$/.test(y)) {
+            const d = Number(x) - Number(y);
+            if (d) return d;
+        } else if (x !== y) return x.localeCompare(y);
+    }
+    return A.localeCompare(B);
+}
+
+function sortRows() {
+    systemRows.sort((a,b) => naturalCompare(a.pcNo,b.pcNo) || naturalCompare(a.network,b.network) || naturalCompare(a.clientName,b.clientName) || naturalCompare(a.tvDisplay,b.tvDisplay) || naturalCompare(a.portNo,b.portNo));
+}
+
+function toggleAutoGroup() {
+    autoGroupEnabled = !autoGroupEnabled;
+    const btn = document.getElementById('btnAutoGroup');
+    btn.className = autoGroupEnabled ? 'btn btn-primary' : 'btn btn-secondary';
+    btn.textContent = autoGroupEnabled ? '🔀 Auto-Group: ON' : '🔀 Auto-Group: OFF';
+    renderMatrix();
+}
+
+function handleSearch() {
+    currentSearchQuery = String(document.getElementById('globalSearch').value || '').toLowerCase().trim();
+    renderMatrix();
+}
+
+function rowMatches(r) {
+    if (!currentSearchQuery) return true;
+    return [r.pcNo,r.clientName,r.network,r.tvDisplay,r.portNo,r.camNumbers,r.software,r.recTime]
+        .join(' ').toLowerCase().includes(currentSearchQuery);
+}
+
+function renderMatrix() {
+    const body = document.getElementById('matrixBody');
+    if (!body) return;
+    sortRows();
+    const rows = systemRows.filter(rowMatches);
+    body.innerHTML = '';
+    if (!rows.length) { showEmpty(currentSearchQuery ? 'No matching records found.' : 'No records found.'); return; }
+    hideEmpty();
+
+    rows.forEach((r) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="pc-cell"><strong>${escapeHtml(r.pcNo)}</strong></td>
+            <td><strong>${escapeHtml(r.clientName)}</strong></td>
+            <td><strong>${escapeHtml(r.network)}</strong></td>
+            <td>${escapeHtml(r.tvDisplay)}</td>
+            <td>${escapeHtml(r.portNo)}</td>
+            <td>${escapeHtml(r.camNumbers)}</td>
+            <td><span class="camera-count">${parseCameraStringCount(r.camNumbers)}</span></td>
+            <td>${escapeHtml(r.displayTotal || String(parseCameraStringCount(r.camNumbers)))}</td>
+            <td>${escapeHtml(r.camerasTotal || '')}</td>
+            <td>${escapeHtml(r.software)}</td>
+            <td>${renderRecordingTimeCell(r.recTime)}</td>
+            <td class="admin-only actions-cell">
+                <button class="btn btn-secondary btn-mini" title="Edit" onclick="openRowModal('${jsSafe(r.id)}')">✏️</button>
+                <button class="btn btn-danger btn-mini" title="Delete" onclick="openDeleteModal('${jsSafe(r.id)}')">🗑️</button>
+            </td>`;
+        if (!IS_ADMIN) tr.querySelector('.admin-only').remove();
+        body.appendChild(tr);
+    });
+}
+
+function showEmpty(message) {
+    const el = document.getElementById('tableEmptyState');
+    if (el) { el.textContent = message; el.style.display = 'block'; }
+}
+function hideEmpty() {
+    const el = document.getElementById('tableEmptyState');
+    if (el) el.style.display = 'none';
+}
+
+function parseCameraStringCount(value) {
+    const s = String(value || '').trim();
+    if (!s) return 0;
+    const set = new Set();
+    s.replace(/(\d+)\s*(?:to|-|–)\s*(\d+)/gi, (_,a,b) => {
+        let x = Number(a), y = Number(b);
+        if (x > y) [x,y] = [y,x];
+        for (let n=x;n<=y;n++) set.add(n);
+        return '';
+    }).split(',').forEach(part => { const n = Number((part.match(/\d+/)||[])[0]); if (Number.isFinite(n)) set.add(n); });
+    return set.size;
+}
+
+function escapeHtml(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function jsSafe(str) { return String(str ?? '').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+function parseRecordingTimes(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return [{type:'Live view',color:'red',start:'06.00 AM',end:'06.00 PM'}];
+    return raw.split(/\s*\|\|\s*/).map(part => {
+        try {
+            const o = JSON.parse(part);
+            if (o && o.type) return {type:o.type,color:o.color||'blue',start:o.start||'',end:o.end||''};
+        } catch (_) {}
+        const p = part.split('|');
+        if (p.length >= 4) return {type:p[0],color:p[1]||'blue',start:p[2]||'',end:p.slice(3).join('|')||''};
+        return {type:part,color:'blue',start:'',end:''};
+    });
+}
+
+function openRowModal(id=null) {
+    if (!IS_ADMIN) return;
+    document.getElementById('modalTitle').textContent = id ? 'Modify Existing Configuration Row Matrix' : 'Append New Matrix Row Configuration';
+    const r = id ? systemRows.find(x => String(x.id) === String(id)) : null;
+    document.getElementById('formRowId').value = r ? r.id : '';
+    document.getElementById('formPcNo').value = r?.pcNo || '';
+    document.getElementById('formClientName').value = r?.clientName || '';
+    document.getElementById('formNetwork').value = r?.network || '';
+    document.getElementById('formTvDisplay').value = r?.tvDisplay || '';
+    document.getElementById('formPortNo').value = r?.portNo || '';
+    document.getElementById('formCamNumbers').value = r?.camNumbers || '';
+    document.getElementById('formSoftware').value = r?.software || '';
+    const list = document.getElementById('recordingTimeList');
+    list.innerHTML = '';
+    const times = r ? parseRecordingTimes(r.recTime) : [{type:'Live view',color:'red',start:'06.00 AM',end:'06.00 PM'}];
+    times.forEach(addRecordingTimeItem);
+    updateRecordingTimePreview();
+    document.getElementById('modalRow').classList.add('active');
+    setTimeout(() => document.getElementById('formPcNo').focus(), 50);
+}
+function closeRowModal() { document.getElementById('modalRow')?.classList.remove('active'); }
+
+function addRecordingTimeItem(data={}) {
+    const list = document.getElementById('recordingTimeList');
+    const row = document.createElement('div');
+    row.className = 'recording-time-item';
+    row.innerHTML = `
+      <input class="rt-type" type="text" value="${escapeHtml(data.type || 'Live view')}" placeholder="Type / Name">
+      <select class="rt-color">
+        <option value="red" ${(data.color||'red')==='red'?'selected':''}>🔴 Red</option>
+        <option value="green" ${data.color==='green'?'selected':''}>🟢 Green</option>
+        <option value="blue" ${data.color==='blue'?'selected':''}>🔵 Blue</option>
+        <option value="orange" ${data.color==='orange'?'selected':''}>🟠 Orange</option>
+      </select>
+      <input class="rt-start" type="text" value="${escapeHtml(data.start || '')}" placeholder="06.00 AM">
+      <input class="rt-end" type="text" value="${escapeHtml(data.end || '')}" placeholder="06.00 PM">
+      <button type="button" class="recording-time-remove">🗑️</button>`;
+    row.querySelectorAll('input,select').forEach(x => { x.addEventListener('input',updateRecordingTimePreview); x.addEventListener('change',updateRecordingTimePreview); });
+    row.querySelector('.recording-time-remove').addEventListener('click',()=>{row.remove();updateRecordingTimePreview();});
+    list.appendChild(row);
+    updateRecordingTimePreview();
+}
+
+function updateRecordingTimePreview() {
+    const preview = document.getElementById('recordingTimePreview');
+    if (!preview) return;
+    preview.innerHTML = '';
+    document.querySelectorAll('#recordingTimeList .recording-time-item').forEach(row => {
+        const type=row.querySelector('.rt-type').value.trim()||'New Type';
+        const color=row.querySelector('.rt-color').value;
+        const start=row.querySelector('.rt-start').value.trim();
+        const end=row.querySelector('.rt-end').value.trim();
+        const icon={red:'🔴',green:'🟢',blue:'🔵',orange:'🟠'}[color]||'🔵';
+        const div=document.createElement('div'); div.className='recording-preview-row '+color;
+        div.textContent=`${icon} ${start} To ${end} - ${type}`; preview.appendChild(div);
+    });
+}
+
+function collectRecordingTimes() {
+    return Array.from(document.querySelectorAll('#recordingTimeList .recording-time-item')).map(row => ({
+        type:row.querySelector('.rt-type').value.trim(),
+        color:row.querySelector('.rt-color').value,
+        start:row.querySelector('.rt-start').value.trim(),
+        end:row.querySelector('.rt-end').value.trim()
+    })).filter(x => x.type || x.start || x.end);
+}
+
+function saveRow() {
+    if (!IS_ADMIN) return;
+    try {
+        const id=document.getElementById('formRowId').value.trim();
+        const pcNo=document.getElementById('formPcNo').value.trim();
+        const clientName=document.getElementById('formClientName').value.trim();
+        const network=document.getElementById('formNetwork').value.trim();
+        const tvDisplay=document.getElementById('formTvDisplay').value.trim();
+        const portNo=document.getElementById('formPortNo').value.trim();
+        const camNumbers=document.getElementById('formCamNumbers').value.trim();
+        const software=document.getElementById('formSoftware').value.trim();
+        if (!pcNo||!clientName||!network||!tvDisplay||!portNo||!camNumbers) { alert('Please fill all required fields (*).'); return; }
+        const times=collectRecordingTimes();
+        if (!times.length) { alert('Please add at least one Recording Time.'); return; }
+        const recTime=times.map(x=>JSON.stringify(x)).join(' || ');
+        const payload={pcNo,clientName,network,tvDisplay,portNo,camNumbers,software,recTime};
+        if (id) {
+            const i=systemRows.findIndex(x=>String(x.id)===String(id));
+            if(i<0){alert('Row not found.');return;}
+            systemRows[i]={...systemRows[i],...payload};
+        } else {
+            systemRows.push({id:'row_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),...payload});
         }
-        function toggleTheme() {
-            const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', t);
-            localStorage.setItem('cctv_theme_config', t);
-        }
-    </script>
+        sortRows();
+        persistState();
+        renderMatrix();
+        closeRowModal();
+        alert('Saved successfully. Now click Download CSV and upload data.csv to GitHub.');
+    } catch(err) {
+        console.error(err);
+        alert('Save failed: '+err.message);
+    }
+}
+
+function openDeleteModal(id) {
+    if (!IS_ADMIN) return;
+    const r=systemRows.find(x=>String(x.id)===String(id)); if(!r)return;
+    pendingDeleteId=r.id;
+    document.getElementById('deleteClientName').textContent=r.clientName||'-';
+    document.getElementById('deletePortNo').textContent=r.portNo||'-';
+    document.getElementById('deleteCamNumbers').textContent=r.camNumbers||'-';
+    document.getElementById('modalDelete').classList.add('active');
+}
+function closeDeleteModal(){pendingDeleteId=null;document.getElementById('modalDelete')?.classList.remove('active');}
+function confirmDeleteRow(){
+    if(!IS_ADMIN||!pendingDeleteId)return;
+    systemRows=systemRows.filter(x=>String(x.id)!==String(pendingDeleteId));
+    persistState(); renderMatrix(); closeDeleteModal();
+}
+
+function renderRecordingTimeCell(value) {
+    const entries=parseRecordingTimes(value);
+    const icons={red:'🔴',green:'🟢',blue:'🔵',orange:'🟠'};
+    return '<div class="rec-time-stack">'+entries.map(e=>`<span class="rec-line ${escapeHtml(e.color||'blue')}">${icons[e.color]||'🔵'} ${escapeHtml(e.start)} To ${escapeHtml(e.end)} - ${escapeHtml(e.type)}</span>`).join('')+'</div>';
+}
+
+function escapeCsvField(v){const s=String(v??'');return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function exportToCsv(){
+    if(!IS_ADMIN)return;
+    if(!systemRows.length){alert('No data to export.');return;}
+    const headers=['ID','PC No','Client Name','PC For Network','TV Display','Port No','Camera Numbers','No. of Cameras','Display Total','Cameras Total','Software','Recording Time'];
+    const lines=[headers.map(escapeCsvField).join(',')];
+    systemRows.forEach(r=>lines.push([
+        r.id,r.pcNo,r.clientName,r.network,r.tvDisplay,r.portNo,r.camNumbers,parseCameraStringCount(r.camNumbers),r.displayTotal||parseCameraStringCount(r.camNumbers),r.camerasTotal||'',r.software,r.recTime
+    ].map(escapeCsvField).join(',')));
+    const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='data.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function exportBackup(){if(!IS_ADMIN||!systemRows.length)return; const blob=new Blob([JSON.stringify(systemRows,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a');a.href=url;a.download='cctv_backup.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function importBackup(event){
+    if(!IS_ADMIN)return; const file=event.target.files?.[0]; if(!file)return;
+    const reader=new FileReader(); reader.onload=()=>{try{const x=JSON.parse(reader.result);if(!Array.isArray(x))throw new Error('Invalid backup');systemRows=x;sortRows();persistState();renderMatrix();alert('Backup restored successfully.');}catch(e){alert('Restore failed: '+e.message);}event.target.value='';};reader.readAsText(file);
+}
+function initTheme(){document.documentElement.setAttribute('data-theme',localStorage.getItem('cctv_theme_config')||'light');}
+function toggleTheme(){const t=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',t);localStorage.setItem('cctv_theme_config',t);}
+</script>
 </body>
 </html>
