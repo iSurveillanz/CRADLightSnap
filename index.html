@@ -465,6 +465,48 @@
             color:var(--text-main);
             font:inherit;
         }
+
+        .rec-time-live::before {
+            content: "🟢 ";
+        }
+        .rec-time-closed::before {
+            content: "🔴 ";
+        }
+        .rec-time-legend {
+            display:flex;
+            align-items:center;
+            gap:18px;
+            margin-top:8px;
+            font-size:12px;
+            font-weight:600;
+        }
+        .rec-time-legend .live { color:#15803d; }
+        .rec-time-legend .closed { color:#dc2626; }
+
+        .col-rec-time {
+            white-space: normal !important;
+            line-height: 1.35;
+            min-width: 210px;
+            font-weight: 700;
+        }
+        .col-rec-time.rec-time-live {
+            background: #dcfce7 !important;
+            color: #15803d !important;
+        }
+        .col-rec-time.rec-time-closed {
+            background: #fee2e2 !important;
+            color: #dc2626 !important;
+        }
+        .col-rec-time.rec-time-custom {
+            background: #fff !important;
+            color: var(--text-main) !important;
+        }
+        .recording-time-pickers {
+            margin-top: 8px;
+        }
+        #formRecTime {
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
@@ -494,6 +536,10 @@
                 <h2>Master Configuration Matrix</h2>
             </div>
             <div id="publicNote" class="public-note">🌐 Public View — View and search only. Editing is disabled.</div>
+            <div class="rec-time-legend">
+                <span class="live">🟢 Live Main View</span>
+                <span class="closed">🔴 Closed Off / Restore</span>
+            </div>
             <div class="table-container">
                 <table id="matrixTable">
                     <thead>
@@ -547,7 +593,7 @@
                         <select id="formRecType" onchange="updateRecordingTimeEditor()">
                             <option value="live">🟢 Live Main View</option>
                             <option value="closed">🔴 Closed Off TV / Restore</option>
-                            <option value="custom">✏️ Custom</option>
+                            <option value="custom">⚪ Custom / New Type</option>
                         </select>
 
                         <div class="recording-time-pickers">
@@ -561,6 +607,10 @@
                             </div>
                         </div>
 
+                        <input type="text" id="formRecLabel"
+                               placeholder="Custom type name (e.g. Maintenance)"
+                               style="display:none; margin-bottom:8px;"
+                               oninput="updateRecordingTimeEditor()">
                         <input type="text" id="formRecTime"
                                placeholder="Generated recording time"
                                oninput="this.dataset.generated='0'; updateRecordingTimeColor(this)">
@@ -817,19 +867,25 @@
             const start = document.getElementById('formRecStart');
             const end = document.getElementById('formRecEnd');
             const input = document.getElementById('formRecTime');
+            const label = document.getElementById('formRecLabel');
             if (!type || !start || !end || !input) return;
 
-            const base = formatTimeForRecording(start.value) + ' To ' + formatTimeForRecording(end.value);
+            const custom = type.value === 'custom';
+            if (label) {
+                label.style.display = custom ? 'block' : 'none';
+            }
+
+            const startText = formatTimeForRecording(start.value);
+            const endText = formatTimeForRecording(end.value);
+            const base = startText + ' To ' + endText;
 
             if (type.value === 'live') {
                 input.value = base + ' (Live Main view)';
             } else if (type.value === 'closed') {
                 input.value = base + ' (Closed off TV/restore)';
-            } else {
-                // Custom: do not overwrite the user's text.
-                if (!input.value || input.dataset.generated === '1') {
-                    input.value = base;
-                }
+            } else if (custom) {
+                const customName = (label && label.value.trim()) ? label.value.trim() : 'Custom';
+                input.value = base + ' (' + customName + ')';
             }
 
             input.dataset.generated = '1';
@@ -866,6 +922,7 @@
             const type = document.getElementById('formRecType');
             const start = document.getElementById('formRecStart');
             const end = document.getElementById('formRecEnd');
+            const label = document.getElementById('formRecLabel');
             if (!input || !type || !start || !end) return;
 
             input.value = value || '';
@@ -884,14 +941,23 @@
             }
 
             const upper = String(value || '').toUpperCase();
-            if (upper.includes('LIVE MAIN VIEW')) type.value = 'live';
-            else if (upper.includes('CLOSED OFF TV') || upper.includes('CLOSED OFF TV / RESTORE') || upper.includes('CLOSED OFF TV/RESTORE')) type.value = 'closed';
-            else type.value = 'custom';
+            if (upper.includes('LIVE MAIN VIEW')) {
+                type.value = 'live';
+                if (label) label.value = '';
+            } else if (upper.includes('CLOSED OFF TV') || upper.includes('CLOSED OFF TV / RESTORE') || upper.includes('CLOSED OFF TV/RESTORE')) {
+                type.value = 'closed';
+                if (label) label.value = '';
+            } else {
+                type.value = 'custom';
+                const matchLabel = String(value || '').match(/\(([^()]*)\)\s*$/);
+                if (label) label.value = matchLabel ? matchLabel[1] : '';
+            }
 
+            if (label) label.style.display = type.value === 'custom' ? 'block' : 'none';
             updateRecordingTimeColor(input);
         }
 
-        function updateRecordingTimeColor(input) {
+        function updateRecordingTimeColor(input) {(input) {
             if (!input) return;
             input.classList.remove('rec-time-live', 'rec-time-closed', 'rec-time-custom');
             input.classList.add(getRecordingTimeClass(input.value));
