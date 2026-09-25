@@ -404,6 +404,34 @@
         body.public-mode #btnDownloadCsv {
             display: none !important;
         }
+
+        /* Recording Time status colors */
+        .rec-time-live {
+            color: #15803d !important;
+            font-weight: 700;
+        }
+        .rec-time-closed {
+            color: #dc2626 !important;
+            font-weight: 700;
+        }
+        .rec-time-custom {
+            color: var(--text-main) !important;
+            font-weight: 600;
+        }
+        #formRecTime.rec-time-live {
+            color: #15803d !important;
+            font-weight: 700;
+        }
+        #formRecTime.rec-time-closed {
+            color: #dc2626 !important;
+            font-weight: 700;
+        }
+        .rec-time-help {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -481,7 +509,17 @@
                 <div class="form-group"><label>Camera Numbers Sequence*</label><input type="text" id="formCamNumbers" required placeholder="e.g., 01 to 15"></div>
                 <div class="form-row">
                     <div class="form-group"><label>Software Name</label><input type="text" id="formSoftware" placeholder="e.g., iVMS 4200"></div>
-                    <div class="form-group"><label>Recording Time</label><input type="text" id="formRecTime" placeholder="e.g., 06.00 PM To 06.00 AM"></div>
+                    <div class="form-group">
+                        <label>Recording Time</label>
+                        <input type="text" id="formRecTime"
+                               placeholder="e.g., 06.00 PM To 06.00 AM (Live Main view)"
+                               oninput="updateRecordingTimeColor(this)">
+                        <div class="rec-time-help">
+                            🟢 06.00 PM To 06.00 AM = Live Main view &nbsp; | &nbsp;
+                            🔴 06.01 AM to 9.00 AM = Closed off TV/restore<br>
+                            Other/new text is also allowed.
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -712,6 +750,37 @@
             renderMatrix();
         }
 
+        function getRecordingTimeClass(value) {
+            const s = String(value || '').trim().toUpperCase().replace(/\s+/g, ' ');
+            if (!s) return 'rec-time-custom';
+
+            // Green: Live Main view
+            if (s.includes('06.00 PM TO 06.00 AM') ||
+                s.includes('06:00 PM TO 06:00 AM') ||
+                s.includes('LIVE MAIN VIEW')) {
+                return 'rec-time-live';
+            }
+
+            // Red: Closed off TV / restore
+            if (s.includes('06.01 AM TO 9.00 AM') ||
+                s.includes('06.01 AM TO 09.00 AM') ||
+                s.includes('06:01 AM TO 9:00 AM') ||
+                s.includes('06:01 AM TO 09:00 AM') ||
+                s.includes('CLOSED OFF TV/RESTORE') ||
+                s.includes('CLOSED OFF TV / RESTORE')) {
+                return 'rec-time-closed';
+            }
+
+            // New/custom text is allowed and remains neutral.
+            return 'rec-time-custom';
+        }
+
+        function updateRecordingTimeColor(input) {
+            if (!input) return;
+            input.classList.remove('rec-time-live', 'rec-time-closed', 'rec-time-custom');
+            input.classList.add(getRecordingTimeClass(input.value));
+        }
+
         function renderMatrix() {
             const tbody = document.getElementById('matrixBody');
             tbody.innerHTML = '';
@@ -763,7 +832,7 @@
                         <td class="cell-display-total">${camCount}</td>
                         <td class="cell-cameras-total">${camCount}</td>
                         <td>${escapeHtml(row.software || '-')}</td>
-                        <td class="col-rec-time">${escapeHtml(row.recTime || '-')}</td>
+                        <td class="col-rec-time ${getRecordingTimeClass(row.recTime)}">${escapeHtml(row.recTime || '-')}</td>
                         <td class="col-actions admin-only">
                             <div class="action-cell">
                                 <button class="btn btn-secondary btn-mini" title="Edit" onclick="openRowModal('${row.id}')">✏️</button>
@@ -855,7 +924,7 @@
                 if (isRecStart) {
                     let recSpan = 1;
                     while (r + recSpan < visibleRows.length && isSameRec(r, r + recSpan)) recSpan++;
-                    html += `<td rowspan="${recSpan}" class="col-rec-time">${escapeHtml(row.recTime || '-')}</td>`;
+                    html += `<td rowspan="${recSpan}" class="col-rec-time ${getRecordingTimeClass(row.recTime)}">${escapeHtml(row.recTime || '-')}</td>`;
                 }
 
                 // Actions
@@ -889,6 +958,7 @@
                 document.getElementById('formCamNumbers').value = r.camNumbers || '';
                 document.getElementById('formSoftware').value = r.software || '';
                 document.getElementById('formRecTime').value = r.recTime || '';
+                updateRecordingTimeColor(document.getElementById('formRecTime'));
             } else {
                 title.innerText = "Append New Matrix Row Configuration";
                 document.getElementById('formRowId').value = '';
@@ -900,6 +970,7 @@
                 document.getElementById('formCamNumbers').value = '';
                 document.getElementById('formSoftware').value = '';
                 document.getElementById('formRecTime').value = '';
+                updateRecordingTimeColor(document.getElementById('formRecTime'));
             }
             overlay.classList.add('active');
             document.getElementById('formPcNo').focus();
