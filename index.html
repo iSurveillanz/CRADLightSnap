@@ -400,6 +400,10 @@
         body.public-mode td.admin-only {
             display: none !important;
         }
+
+        body.public-mode #btnDownloadCsv {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -415,7 +419,7 @@
             <div class="header-actions">
                 <span id="modeBadge" class="mode-badge mode-public">🌐 Public View</span>
                 <button class="btn btn-primary" id="btnAutoGroup" onclick="toggleAutoGroup()" title="Toggle grouping/rowspan (sorting always active)">🔀 Auto-Group: ON</button>
-                <button class="btn btn-secondary" onclick="exportToCsv()" title="Download the current data as CSV">📥 Download CSV</button>
+                <button class="btn btn-secondary" id="btnDownloadCsv" onclick="exportToCsv()" title="Download the current data as CSV">📥 Download CSV</button>
                 <button class="btn btn-secondary admin-only" onclick="exportBackup()" title="Download complete JSON backup">💾 Backup</button>
                 <button class="btn btn-secondary admin-only" onclick="document.getElementById('backupFileInput').click()" title="Restore records from JSON backup">📂 Restore</button>
                 <button class="btn btn-secondary" onclick="window.print()" title="Print Matrix">🖨️ Print</button>
