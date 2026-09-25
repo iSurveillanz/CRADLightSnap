@@ -715,7 +715,16 @@
         @media (max-width: 800px) {
             .save-workflow-note { width: 100%; margin-bottom: 8px; }
         }
-    </style>
+    
+/* Auto-grouped cells */
+#matrixBody td[rowspan] {
+    vertical-align: middle;
+}
+#matrixBody .pc-cell {
+    font-weight: 700;
+}
+
+</style>
 </head>
 <body>
     <main>
@@ -729,7 +738,7 @@
             </div>
             <div class="header-actions">
                 <span id="modeBadge" class="mode-badge mode-public">🌐 Public View</span>
-                <button class="btn btn-primary" id="btnAutoGroup" onclick="toggleAutoGroup()" title="Toggle grouping/rowspan (sorting always active)">🔀 Auto-Group: ON</button>
+                <button class="btn btn-primary" id="btnAutoGroup" onclick="toggleAutoGroup()" title="Merge consecutive matching PC No., Network and Cameras Total cells">🔀 Auto-Group: ON</button>
                 <button class="btn btn-secondary" id="btnDownloadCsv" onclick="exportToCsv()" title="Download the current data as CSV">📥 Download CSV</button>
                 <button class="btn btn-secondary admin-only" onclick="exportBackup()" title="Download complete JSON backup">💾 Backup</button>
                 <button class="btn btn-secondary admin-only" onclick="document.getElementById('backupFileInput').click()" title="Restore records from JSON backup">📂 Restore</button>
@@ -1014,31 +1023,89 @@ function rowMatches(r) {
 function renderMatrix() {
     const body = document.getElementById('matrixBody');
     if (!body) return;
+
     sortRows();
     const rows = systemRows.filter(rowMatches);
     body.innerHTML = '';
-    if (!rows.length) { showEmpty(currentSearchQuery ? 'No matching records found.' : 'No records found.'); return; }
+
+    if (!rows.length) {
+        showEmpty(currentSearchQuery ? 'No matching records found.' : 'No records found.');
+        return;
+    }
     hideEmpty();
 
-    rows.forEach((r) => {
+    // When Auto-Group is ON, merge consecutive identical group values
+    // using real HTML rowspans. When OFF, every row is shown separately.
+    const groupColumns = [
+        { key: 'pcNo', index: 0 },
+        { key: 'network', index: 2 },
+        { key: 'camerasTotal', index: 8 }
+    ];
+
+    const groups = {};
+    if (autoGroupEnabled) {
+        groupColumns.forEach(col => {
+            groups[col.key] = [];
+            let i = 0;
+            while (i < rows.length) {
+                const value = String(rows[i][col.key] || '');
+                let j = i + 1;
+                while (j < rows.length && String(rows[j][col.key] || '') === value) j++;
+                groups[col.key].push({ start: i, span: j - i, value });
+                i = j;
+            }
+        });
+    }
+
+    rows.forEach((r, rowIndex) => {
         const tr = document.createElement('tr');
+
+        let pcCell = '';
+        let networkCell = '';
+        let camerasTotalCell = '';
+
+        if (!autoGroupEnabled) {
+            pcCell = `<td class="pc-cell"><strong>${escapeHtml(r.pcNo)}</strong></td>`;
+            networkCell = `<td><strong>${escapeHtml(r.network)}</strong></td>`;
+            camerasTotalCell = `<td>${escapeHtml(r.camerasTotal || '')}</td>`;
+        } else {
+            const pcGroup = groups.pcNo.find(g => g.start === rowIndex);
+            const netGroup = groups.network.find(g => g.start === rowIndex);
+            const camGroup = groups.camerasTotal.find(g => g.start === rowIndex);
+
+            if (pcGroup) {
+                pcCell = `<td class="pc-cell" rowspan="${pcGroup.span}"><strong>${escapeHtml(r.pcNo)}</strong></td>`;
+            }
+            if (netGroup) {
+                networkCell = `<td rowspan="${netGroup.span}"><strong>${escapeHtml(r.network)}</strong></td>`;
+            }
+            if (camGroup) {
+                camerasTotalCell = `<td rowspan="${camGroup.span}">${escapeHtml(r.camerasTotal || '')}</td>`;
+            }
+        }
+
         tr.innerHTML = `
-            <td class="pc-cell"><strong>${escapeHtml(r.pcNo)}</strong></td>
+            ${pcCell}
             <td><strong>${escapeHtml(r.clientName)}</strong></td>
-            <td><strong>${escapeHtml(r.network)}</strong></td>
+            ${networkCell}
             <td>${escapeHtml(r.tvDisplay)}</td>
             <td>${escapeHtml(r.portNo)}</td>
             <td>${escapeHtml(r.camNumbers)}</td>
             <td><span class="camera-count">${parseCameraStringCount(r.camNumbers)}</span></td>
             <td>${escapeHtml(r.displayTotal || String(parseCameraStringCount(r.camNumbers)))}</td>
-            <td>${escapeHtml(r.camerasTotal || '')}</td>
+            ${camerasTotalCell}
             <td>${escapeHtml(r.software)}</td>
             <td>${renderRecordingTimeCell(r.recTime)}</td>
             <td class="admin-only actions-cell">
                 <button class="btn btn-secondary btn-mini" title="Edit" onclick="openRowModal('${jsSafe(r.id)}')">✏️</button>
                 <button class="btn btn-danger btn-mini" title="Delete" onclick="openDeleteModal('${jsSafe(r.id)}')">🗑️</button>
             </td>`;
-        if (!IS_ADMIN) tr.querySelector('.admin-only').remove();
+
+        if (!IS_ADMIN) {
+            const actions = tr.querySelector('.admin-only');
+            if (actions) actions.remove();
+        }
+
         body.appendChild(tr);
     });
 }
