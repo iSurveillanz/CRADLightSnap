@@ -1,0 +1,10 @@
+ID,PC No,Client Name,PC For Network,TV Display,Port No,Camera Numbers,No. of Cameras,Software,Recording Time
+r_a4_1,A4,Lumax Metallic,B1,TV 1,8000,01 to 16,16,iVMS 4200,06.00 PM To 06.00 AM
+r_a4_2,A4,ADM Joinflex Plant 2,B2,TV 3,8003,01 to 14,14,iVMS 4200,06.00 PM To 06.00 AM
+r_a4_3,A4,ADM Joinflex Plant 2,B2,TV 3,8005,01 to 06,6,iVMS 4200,06.00 PM To 06.00 AM
+r_a4_4,A4,IWI Nashik,D02,TV 2,H-50 NVR,01 to 08,8,iVMS 4200,06.00 PM To 06.00 AM
+r_a5_1,A5,VAPL Faridabad,A2,TV 1,5385,01 to 05,5,iVMS 4200,06.00 PM To 06.00 AM
+r_a5_2,A5,VAPL Faridabad,A2,TV 1,5386,06 to 10,5,iVMS 4200,06.00 PM To 06.00 AM
+r_a5_3,A5,VAPL Faridabad,A2,TV 1,5388,11 to 14,4,iVMS 4200,06.00 PM To 06.00 AM
+r_a5_4,A5,VAPL BAWAL,A2,TV 2,NVR 1,01 to 15,15,iVMS 4200,06.00 PM To 06.00 AM
+r_a5_5,A5,VAPL Sikri,A2,TV 3,-,01 to 12,12,iVMS 4200,06.00 PM To 06.00 AM
