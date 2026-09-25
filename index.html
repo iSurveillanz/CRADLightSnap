@@ -250,52 +250,75 @@
             border-right: none;
         }
 
-        /* PC GROUP BACKGROUNDS */
-        tr.pc-group-theme-0 td:not(.col-rec-time):not(.col-actions) { background-color: #f3e8ff !important; }
-        tr.pc-group-theme-1 td:not(.col-rec-time):not(.col-actions) { background-color: #f1f5f9 !important; }
-        tr.pc-group-theme-2 td:not(.col-rec-time):not(.col-actions) { background-color: #e0f2fe !important; }
-        tr.pc-group-theme-3 td:not(.col-rec-time):not(.col-actions) { background-color: #ecfdf5 !important; }
-        tr.pc-group-theme-4 td:not(.col-rec-time):not(.col-actions) { background-color: #fef3c7 !important; }
-        tr.pc-group-theme-5 td:not(.col-rec-time):not(.col-actions) { background-color: #fce7f3 !important; }
-        tr.pc-group-theme-6 td:not(.col-rec-time):not(.col-actions) { background-color: #e0e7ff !important; }
-        tr.pc-group-theme-7 td:not(.col-rec-time):not(.col-actions) { background-color: #ccfbf1 !important; }
 
-        [data-theme="dark"] tr.pc-group-theme-0 td:not(.col-rec-time):not(.col-actions) { background-color: #2b1b3d !important; }
-        [data-theme="dark"] tr.pc-group-theme-1 td:not(.col-rec-time):not(.col-actions) { background-color: #1e293b !important; }
-        [data-theme="dark"] tr.pc-group-theme-2 td:not(.col-rec-time):not(.col-actions) { background-color: #0f2d42 !important; }
-        [data-theme="dark"] tr.pc-group-theme-3 td:not(.col-rec-time):not(.col-actions) { background-color: #0d3829 !important; }
-        [data-theme="dark"] tr.pc-group-theme-4 td:not(.col-rec-time):not(.col-actions) { background-color: #38280f !important; }
-        [data-theme="dark"] tr.pc-group-theme-5 td:not(.col-rec-time):not(.col-actions) { background-color: #3b1530 !important; }
-        [data-theme="dark"] tr.pc-group-theme-6 td:not(.col-rec-time):not(.col-actions) { background-color: #1e1b4b !important; }
-        [data-theme="dark"] tr.pc-group-theme-7 td:not(.col-rec-time):not(.col-actions) { background-color: #0f3a2e !important; }
+/* =========================================================
+   EXCEL-STYLE PC GROUP COLOR SYSTEM
+   Color belongs to PC only. Never color by client/network/row.
+   ========================================================= */
+tr.pc-group-theme-0 td:not(.col-rec-time):not(.col-actions) { background-color:#f3e8ff !important; }
+tr.pc-group-theme-1 td:not(.col-rec-time):not(.col-actions) { background-color:#f1f5f9 !important; }
+tr.pc-group-theme-2 td:not(.col-rec-time):not(.col-actions) { background-color:#e0f2fe !important; }
+tr.pc-group-theme-3 td:not(.col-rec-time):not(.col-actions) { background-color:#ecfdf5 !important; }
+tr.pc-group-theme-4 td:not(.col-rec-time):not(.col-actions) { background-color:#fef3c7 !important; }
+tr.pc-group-theme-5 td:not(.col-rec-time):not(.col-actions) { background-color:#fce7f3 !important; }
+tr.pc-group-theme-6 td:not(.col-rec-time):not(.col-actions) { background-color:#e0e7ff !important; }
+tr.pc-group-theme-7 td:not(.col-rec-time):not(.col-actions) { background-color:#ccfbf1 !important; }
 
-        td.col-rec-time {
-            background-color: #fed7aa !important;
-            color: #7c2d12 !important;
-            font-weight: 600;
-            text-align: center;
-            vertical-align: middle;
-        }
-        [data-theme="dark"] td.col-rec-time {
-            background-color: #7c2d12 !important;
-            color: #ffedd5 !important;
-        }
-        td.col-actions {
-            background-color: var(--bg-secondary) !important;
-            vertical-align: middle;
-        }
-        .cell-pc { font-weight: 700; text-align: center; vertical-align: middle; font-size: 14px; }
-        .cell-client { font-weight: 700; vertical-align: middle; }
-        .cell-network { font-weight: 600; text-align: center; vertical-align: middle; }
-        .cell-tv { text-align: center; vertical-align: middle; }
-        .cell-display-total { text-align: center; vertical-align: middle; font-weight: 700; }
-        .cell-cameras-total { font-weight: 700; font-size: 14px; text-align: center; vertical-align: middle; }
+tr.pc-group-theme-0:hover td:not(.col-rec-time):not(.col-actions),
+tr.pc-group-theme-1:hover td:not(.col-rec-time):not(.col-actions),
+tr.pc-group-theme-2:hover td:not(.col-rec-time):not(.col-actions),
+tr.pc-group-theme-3:hover td:not(.col-rec-time):not(.col-actions),
+tr.pc-group-theme-4:hover td:not(.col-rec-time):not(.col-actions),
+tr.pc-group-theme-5:hover td:not(.col-rec-time):not(.col-actions),
+tr.pc-group-theme-6:hover td:not(.col-rec-time):not(.col-actions),
+tr.pc-group-theme-7:hover td:not(.col-rec-time):not(.col-actions) {
+    filter:none !important;
+}
 
-        tr.pc-group-start td { border-top: 3px solid var(--border-color-strong) !important; }
-        tr.network-group-start td { border-top: 1.5px solid var(--network-separator); }
+[data-theme="dark"] tr.pc-group-theme-0 td:not(.col-rec-time):not(.col-actions) { background-color:#2b1b3d !important; }
+[data-theme="dark"] tr.pc-group-theme-1 td:not(.col-rec-time):not(.col-actions) { background-color:#1e293b !important; }
+[data-theme="dark"] tr.pc-group-theme-2 td:not(.col-rec-time):not(.col-actions) { background-color:#0f2d42 !important; }
+[data-theme="dark"] tr.pc-group-theme-3 td:not(.col-rec-time):not(.col-actions) { background-color:#0d3829 !important; }
+[data-theme="dark"] tr.pc-group-theme-4 td:not(.col-rec-time):not(.col-actions) { background-color:#38280f !important; }
+[data-theme="dark"] tr.pc-group-theme-5 td:not(.col-rec-time):not(.col-actions) { background-color:#3b1530 !important; }
+[data-theme="dark"] tr.pc-group-theme-6 td:not(.col-rec-time):not(.col-actions) { background-color:#1e1b4b !important; }
+[data-theme="dark"] tr.pc-group-theme-7 td:not(.col-rec-time):not(.col-actions) { background-color:#0f3a2e !important; }
 
-        tr:hover td:not(.col-rec-time):not(.col-actions) { filter: brightness(0.97); }
-        [data-theme="dark"] tr:hover td:not(.col-rec-time):not(.col-actions) { filter: brightness(1.15); }
+/* Recording Time is ALWAYS its own orange column. */
+td.col-rec-time {
+    background-color:#fed7aa !important;
+    color:#7c2d12 !important;
+    font-weight:600;
+    text-align:center;
+    vertical-align:middle;
+}
+[data-theme="dark"] td.col-rec-time {
+    background-color:#7c2d12 !important;
+    color:#ffedd5 !important;
+}
+
+/* Actions are UI controls, not part of the Excel data color group. */
+td.col-actions {
+    background-color:var(--bg-secondary) !important;
+}
+
+/* Hierarchy readability */
+.cell-pc,
+.cell-network,
+.cell-client,
+.cell-tv,
+.cell-display-total,
+.cell-cameras-total {
+    vertical-align:middle !important;
+}
+.cell-pc { font-weight:700; text-align:center; font-size:14px; }
+.cell-client { font-weight:700; }
+.cell-network { font-weight:600; text-align:center; }
+.cell-tv { text-align:center; }
+.cell-display-total,
+.cell-cameras-total { text-align:center; font-weight:700; }
+
+tr.pc-group-start td { border-top:3px solid var(--border-color-strong) !important; }
 
         .badge {
             display: inline-block;
@@ -1032,6 +1055,8 @@ function renderMatrix() {
     const body = document.getElementById('matrixBody');
     if (!body) return;
 
+    // Always rebuild the visible hierarchy from the current data.
+    // This is important after search/filter because old rowspans must never be reused.
     sortRows();
     const rows = systemRows.filter(rowMatches);
     body.innerHTML = '';
@@ -1042,96 +1067,136 @@ function renderMatrix() {
     }
     hideEmpty();
 
-    // Auto-Group follows PC No.
-    // For each consecutive PC No. group:
-    // - PC No. is merged
-    // - PC For Network is merged when consecutive values match
-    // - Display Total is calculated as the SUM for that PC No. and merged
-    // - Cameras Total is calculated as the SUM for that PC No. and merged
-    const pcGroups = [];
-    let i = 0;
-    while (i < rows.length) {
-        const pc = String(rows[i].pcNo || '');
-        let j = i + 1;
-        while (j < rows.length && String(rows[j].pcNo || '') === pc) j++;
+    // PC theme is determined ONLY by PC No., never by client/network/row.
+    // Keep the same PC -> theme mapping after search so A4 stays purple and A5 stays grey.
+    const allPcValues = [...new Set(systemRows
+        .slice()
+        .sort((a,b) => naturalCompare(a.pcNo,b.pcNo))
+        .map(r => String(r.pcNo || '')))];
+    const pcTheme = new Map(allPcValues.map((pc, index) => [pc, index % 8]));
 
-        let cameraSum = 0;
-        let displaySum = 0;
-
-        for (let k = i; k < j; k++) {
-            const cameraCount = parseCameraStringCount(rows[k].camNumbers);
-            cameraSum += Number.isFinite(cameraCount) ? cameraCount : 0;
-
-            const displayValue = Number(String(rows[k].displayTotal || '').replace(/[^\d.-]/g, ''));
-            displaySum += Number.isFinite(displayValue) ? displayValue : cameraCount;
+    // Helper: build consecutive groups in the already-sorted visible rows.
+    function makeGroups(list, keyFn) {
+        const groups = [];
+        let s = 0;
+        while (s < list.length) {
+            const key = keyFn(list[s]);
+            let e = s + 1;
+            while (e < list.length && keyFn(list[e]) === key) e++;
+            groups.push({ start: s, end: e, span: e - s, key });
+            s = e;
         }
-
-        pcGroups.push({
-            start: i,
-            end: j,
-            span: j - i,
-            pcNo: pc,
-            cameraSum,
-            displaySum
-        });
-        i = j;
+        return groups;
     }
 
-    const networkGroups = [];
-    i = 0;
-    while (i < rows.length) {
-        const value = String(rows[i].network || '');
-        let j = i + 1;
-        while (j < rows.length && String(rows[j].network || '') === value) j++;
-        networkGroups.push({ start: i, end: j, span: j - i, value });
-        i = j;
+    // Hierarchy:
+    // PC -> Network -> Client -> TV
+    // Port and Camera Numbers stay individual rows.
+    const pcGroups = makeGroups(rows, r => String(r.pcNo || ''));
+    const networkGroups = makeGroups(rows, r => `${r.pcNo}|||${r.network}`);
+    const clientGroups = makeGroups(rows, r => `${r.pcNo}|||${r.network}|||${r.clientName}`);
+    const tvGroups = makeGroups(rows, r => `${r.pcNo}|||${r.network}|||${r.clientName}|||${r.tvDisplay}`);
+
+    function groupAt(groups, rowIndex) {
+        return groups.find(g => rowIndex >= g.start && rowIndex < g.end);
     }
+
+    // Totals:
+    // - Cameras Total = total camera count for the complete PC group.
+    // - Display Total = total display/camera value for the complete Client group.
+    const pcTotals = new Map();
+    pcGroups.forEach(g => {
+        let total = 0;
+        for (let i = g.start; i < g.end; i++) {
+            total += parseCameraStringCount(rows[i].camNumbers);
+        }
+        pcTotals.set(g.key, total);
+    });
+
+    const clientTotals = new Map();
+    clientGroups.forEach(g => {
+        let total = 0;
+        for (let i = g.start; i < g.end; i++) {
+            const n = Number(String(rows[i].displayTotal ?? '').replace(/[^\d.-]/g, ''));
+            total += Number.isFinite(n) && String(rows[i].displayTotal ?? '').trim() !== ''
+                ? n
+                : parseCameraStringCount(rows[i].camNumbers);
+        }
+        clientTotals.set(g.key, total);
+    });
 
     rows.forEach((r, rowIndex) => {
         const tr = document.createElement('tr');
-        const pcGroup = pcGroups.find(g => rowIndex >= g.start && rowIndex < g.end);
-        const networkGroup = networkGroups.find(g => rowIndex >= g.start && rowIndex < g.end);
+
+        const pcGroup = groupAt(pcGroups, rowIndex);
+        const networkGroup = groupAt(networkGroups, rowIndex);
+        const clientGroup = groupAt(clientGroups, rowIndex);
+        const tvGroup = groupAt(tvGroups, rowIndex);
+
+        const pcIndex = pcTheme.get(String(r.pcNo || '')) ?? 0;
+        tr.className = `pc-group-theme-${pcIndex}`;
 
         const cameraCount = parseCameraStringCount(r.camNumbers);
-        const rowDisplayTotal = r.displayTotal || String(cameraCount);
 
         let pcCell = '';
         let networkCell = '';
+        let clientCell = '';
+        let tvCell = '';
         let displayTotalCell = '';
         let camerasTotalCell = '';
+        let softwareCell = '';
 
         if (!autoGroupEnabled) {
-            pcCell = `<td class="pc-cell"><strong>${escapeHtml(r.pcNo)}</strong></td>`;
-            networkCell = `<td><strong>${escapeHtml(r.network)}</strong></td>`;
-            displayTotalCell = `<td>${escapeHtml(rowDisplayTotal)}</td>`;
-            camerasTotalCell = `<td>${escapeHtml(r.camerasTotal || String(cameraCount))}</td>`;
+            // OFF = no rowspans, but PC background remains the PC-group background.
+            pcCell = `<td class="cell-pc"><strong>${escapeHtml(r.pcNo)}</strong></td>`;
+            networkCell = `<td class="cell-network"><strong>${escapeHtml(r.network)}</strong></td>`;
+            clientCell = `<td class="cell-client"><strong>${escapeHtml(r.clientName)}</strong></td>`;
+            tvCell = `<td class="cell-tv">${escapeHtml(r.tvDisplay)}</td>`;
+            displayTotalCell = `<td class="cell-display-total">${escapeHtml(r.displayTotal || String(cameraCount))}</td>`;
+            camerasTotalCell = `<td class="cell-cameras-total">${escapeHtml(r.camerasTotal || String(cameraCount))}</td>`;
+            softwareCell = `<td>${escapeHtml(r.software || '-')}</td>`;
         } else {
+            // PC
             if (rowIndex === pcGroup.start) {
-                pcCell = `<td class="pc-cell" rowspan="${pcGroup.span}"><strong>${escapeHtml(pcGroup.pcNo)}</strong></td>`;
-                displayTotalCell = `<td class="pc-total-cell" rowspan="${pcGroup.span}"><strong>${pcGroup.displaySum}</strong></td>`;
-                camerasTotalCell = `<td class="pc-total-cell" rowspan="${pcGroup.span}"><strong>${pcGroup.cameraSum}</strong></td>`;
+                pcCell = `<td class="cell-pc" rowspan="${pcGroup.span}"><strong>${escapeHtml(r.pcNo)}</strong></td>`;
+                camerasTotalCell = `<td class="cell-cameras-total" rowspan="${pcGroup.span}"><strong>${pcTotals.get(pcGroup.key) ?? 0}</strong></td>`;
+                softwareCell = `<td rowspan="${pcGroup.span}">${escapeHtml(r.software || '-')}</td>`;
             }
 
+            // Network inside the PC
             if (rowIndex === networkGroup.start) {
-                networkCell = `<td rowspan="${networkGroup.span}"><strong>${escapeHtml(networkGroup.value)}</strong></td>`;
+                networkCell = `<td class="cell-network" rowspan="${networkGroup.span}"><strong>${escapeHtml(r.network)}</strong></td>`;
+            }
+
+            // Client inside the Network
+            if (rowIndex === clientGroup.start) {
+                clientCell = `<td class="cell-client" rowspan="${clientGroup.span}"><strong>${escapeHtml(r.clientName)}</strong></td>`;
+                displayTotalCell = `<td class="cell-display-total" rowspan="${clientGroup.span}"><strong>${clientTotals.get(clientGroup.key) ?? 0}</strong></td>`;
+            }
+
+            // TV inside the Client
+            if (rowIndex === tvGroup.start) {
+                tvCell = `<td class="cell-tv" rowspan="${tvGroup.span}">${escapeHtml(r.tvDisplay)}</td>`;
             }
         }
 
         tr.innerHTML = `
             ${pcCell}
-            <td><strong>${escapeHtml(r.clientName)}</strong></td>
+            ${clientCell}
             ${networkCell}
-            <td>${escapeHtml(r.tvDisplay)}</td>
+            ${tvCell}
             <td>${escapeHtml(r.portNo)}</td>
             <td>${escapeHtml(r.camNumbers)}</td>
             <td><span class="camera-count">${cameraCount}</span></td>
             ${displayTotalCell}
             ${camerasTotalCell}
-            <td>${escapeHtml(r.software)}</td>
-            <td>${renderRecordingTimeCell(r.recTime)}</td>
-            <td class="admin-only actions-cell">
-                <button class="btn btn-secondary btn-mini" title="Edit" onclick="openRowModal('${jsSafe(r.id)}')">✏️</button>
-                <button class="btn btn-danger btn-mini" title="Delete" onclick="openDeleteModal('${jsSafe(r.id)}')">🗑️</button>
+            ${softwareCell}
+            <td class="col-rec-time">${renderRecordingTimeCell(r.recTime)}</td>
+            <td class="col-actions admin-only">
+                <div class="action-cell">
+                    <button class="btn btn-secondary btn-mini" title="Edit" onclick="openRowModal('${jsSafe(r.id)}')">✏️</button>
+                    <button class="btn btn-danger btn-mini" title="Delete" onclick="openDeleteModal('${jsSafe(r.id)}')">🗑️</button>
+                </div>
             </td>`;
 
         if (!IS_ADMIN) {
