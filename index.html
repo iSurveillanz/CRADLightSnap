@@ -668,6 +668,16 @@
                 width: 100%;
             }
         }
+
+        .save-workflow-note {
+            margin-right: auto;
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        @media (max-width: 800px) {
+            .save-workflow-note { width: 100%; margin-bottom: 8px; }
+        }
     </style>
 </head>
 <body>
@@ -765,8 +775,9 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <div class="save-workflow-note">💾 Save = update this Admin page. Then use <strong>Download CSV</strong> to update GitHub/public data.</div>
                 <button class="btn btn-secondary" onclick="closeRowModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveRow()">Save Entry Row</button>
+                <button class="btn btn-primary" type="button" onclick="saveRow()">Save Entry Row</button>
             </div>
         </div>
     </div>
@@ -1225,13 +1236,27 @@
             const payload = { pcNo, clientName, network, tvDisplay, portNo, camNumbers, software, recTime };
             if (id) {
                 const idx = systemRows.findIndex(item => item.id === id);
-                if (idx !== -1) systemRows[idx] = { id, ...payload };
+                if (idx !== -1) {
+                    systemRows[idx] = { id, ...payload };
+                } else {
+                    alert('The selected row could not be found. Please close and open Edit again.');
+                    return;
+                }
             } else {
                 systemRows.push({ id: 'row_' + Date.now(), ...payload });
             }
+
+            // Save the current Admin changes in this browser immediately.
+            persistState();
+
             applySorting();
             renderMatrix();
             closeRowModal();
+
+            // Make it clear that GitHub/public data is updated only after CSV upload.
+            setTimeout(() => {
+                alert('Saved successfully. Now click “Download CSV” and upload the downloaded CSV to GitHub as data.csv.');
+            }, 50);
         }
 
         function openDeleteModal(id) {
@@ -1271,7 +1296,7 @@
             });
             const blob = new Blob(["\uFEFF" + csvRows.join("\r\n")], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement("a"); a.href = url; a.download = `CCTV_Matrix_${new Date().toISOString().slice(0,10)}.csv`;
+            const a = document.createElement("a"); a.href = url; a.download = 'data.csv';
             document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
         }
 
