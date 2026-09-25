@@ -1,0 +1,11 @@
+﻿ID,PC No,Client Name,PC For Network,TV Display,Port No,Camera Numbers,No. of Cameras,Display Total,Cameras Total,Software,Recording Time
+csv_0_1790336709214,A1,FAD,A1,TV 1,5,1,1,1,,1520,"{""type"":""Live view"",""color"":""green"",""start"":""5 AM"",""end"":""7 PM""} || {""type"":""Closed Off tv / Restore"",""color"":""red"",""start"":""06:00"",""end"":""18:00""}"
+row_1790337039074_piktny,A4,Lumax Metallic,B1,TV 1,8000,01 to 16,16,16,,iVMS 4200,"{""type"":""Live view"",""color"":""red"",""start"":""06.00 AM"",""end"":""06.00 PM""}"
+row_1790337065516_d3kopt,A4,ADM Joinflex Plant 2,B2,TV 3,8003,01 to 14,14,14,,iVMS 4200,"{""type"":""Live view"",""color"":""red"",""start"":""06.00 AM"",""end"":""06.00 PM""}"
+row_1790337101360_e1fbkj,A4,ADM Joinflex Plant 2,B2,TV 3,8005,01 to 06,6,6,,iVMS 4200,"{""type"":""Live view"",""color"":""red"",""start"":""06.00 AM"",""end"":""06.00 PM""}"
+row_1790337127704_1i703z,A4,ADM Joinflex Plant 2,B2,TV 3,8005,01 to 06,6,6,,iVMS 4200,"{""type"":""Live view"",""color"":""red"",""start"":""06.00 AM"",""end"":""06.00 PM""}"
+row_1790337157964_r2hqiq,A4,IWI Nashik,D02,TV 2,H-50 NVR,01 to 08,8,8,,iVMS 4200,"{""type"":""Live view"",""color"":""green"",""start"":""06.00 AM"",""end"":""06.00 PM""}"
+row_1790336837489_5nmy3s,A5,VAPL BAWAL,A2,TV 2,NVR 1,01 to 15,15,15,,iVMS 4200,"{""type"":""Live view"",""color"":""green"",""start"":""06.00 AM"",""end"":""06.00 PM""}"
+row_1790336872064_9z5cru,A5,VAPL Faridabad,A2,TV 1,5385,01 to 05,5,5,,iVMS 4200,"{""type"":""Live view"",""color"":""blue"",""start"":""06.00 AM"",""end"":""06.00 PM""}"
+row_1790336918258_c2guvr,A5,VAPL Faridabad,A2,TV 1,5386,06 to 10,5,5,,iVMS 4200,"{""type"":""Live view"",""color"":""red"",""start"":""06.00 AM"",""end"":""06.00 PM""}"
+row_1790336997194_04k40y,A5,VAPL Faridabad,A2,TV 1,5388,11 to 14,4,4,,iVMS 4200,"{""type"":""Live view"",""color"":""orange"",""start"":""06.00 AM"",""end"":""06.00 PM""}"
