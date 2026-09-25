@@ -622,6 +622,52 @@
                 grid-column: 2;
             }
         }
+
+        /* Recording Time uses the full modal width — no horizontal scrolling */
+        #modalRow .recording-time-full {
+            width: 100%;
+            margin-top: 4px;
+        }
+        #modalRow .recording-time-list {
+            width: 100%;
+            overflow: visible;
+        }
+        #modalRow .recording-time-item {
+            width: 100%;
+            box-sizing: border-box;
+            grid-template-columns: minmax(190px, 1.5fr) minmax(135px, 1fr) minmax(135px, 1fr) minmax(135px, 1fr) 46px;
+            gap: 8px;
+        }
+        #modalRow .recording-time-item input,
+        #modalRow .recording-time-item select {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        #modalRow .modal-body {
+            overflow-x: hidden;
+        }
+        #modalRow .recording-preview,
+        #modalRow .rec-time-help {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        @media (max-width: 850px) {
+            #modalRow .recording-time-item {
+                grid-template-columns: 1.5fr 1fr 1fr;
+            }
+            #modalRow .recording-time-remove {
+                grid-column: auto;
+            }
+        }
+        @media (max-width: 600px) {
+            #modalRow .recording-time-item {
+                grid-template-columns: 1fr;
+            }
+            #modalRow .recording-time-remove {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -702,16 +748,20 @@
                 <div class="form-group"><label>Port No. / Identifier*</label><input type="text" id="formPortNo" required placeholder="e.g., 5385"></div>
                 <div class="form-group"><label>Camera Numbers Sequence*</label><input type="text" id="formCamNumbers" required placeholder="e.g., 01 to 15"></div>
                 <div class="form-row">
-                    <div class="form-group"><label>Software Name</label><input type="text" id="formSoftware" placeholder="e.g., iVMS 4200"></div>
                     <div class="form-group">
-                        <label>Recording Time — Flexible List</label>
-                        <div id="recordingTimeList" class="recording-time-list"></div>
-                        <button type="button" class="btn btn-secondary recording-time-add" onclick="addRecordingTimeItem()">➕ Add New Time</button>
-                        <div class="rec-time-help">
-                            Admin chooses the type name, color, start time, and end time. Add as many times as needed. Public view shows exactly the same information and color.
-                        </div>
-                        <div id="recordingTimePreview" class="recording-preview"></div>
+                        <label>Software Name</label>
+                        <input type="text" id="formSoftware" placeholder="e.g., iVMS 4200">
                     </div>
+                </div>
+
+                <div class="form-group recording-time-full">
+                    <label>Recording Time — Flexible List</label>
+                    <div id="recordingTimeList" class="recording-time-list"></div>
+                    <button type="button" class="btn btn-secondary recording-time-add" onclick="addRecordingTimeItem()">➕ Add New Time</button>
+                    <div class="rec-time-help">
+                        Admin chooses the type name, color, start time, and end time. Add as many times as needed. Public view shows exactly the same information and color.
+                    </div>
+                    <div id="recordingTimePreview" class="recording-preview"></div>
                 </div>
             </div>
             <div class="modal-footer">
