@@ -1095,6 +1095,9 @@ function renderMatrix() {
     const networkGroups = makeGroups(rows, r => `${r.pcNo}|||${r.network}`);
     const clientGroups = makeGroups(rows, r => `${r.pcNo}|||${r.network}|||${r.clientName}`);
     const tvGroups = makeGroups(rows, r => `${r.pcNo}|||${r.network}|||${r.clientName}|||${r.tvDisplay}`);
+    // Software is independent data. Auto-Group must NOT hide a different software value.
+    // Merge only consecutive identical software values inside the same PC group.
+    const softwareGroups = makeGroups(rows, r => `${r.pcNo}|||${String(r.software || '-').trim()}`);
 
     function groupAt(groups, rowIndex) {
         return groups.find(g => rowIndex >= g.start && rowIndex < g.end);
@@ -1131,6 +1134,7 @@ function renderMatrix() {
         const networkGroup = groupAt(networkGroups, rowIndex);
         const clientGroup = groupAt(clientGroups, rowIndex);
         const tvGroup = groupAt(tvGroups, rowIndex);
+        const softwareGroup = groupAt(softwareGroups, rowIndex);
 
         const pcIndex = pcTheme.get(String(r.pcNo || '')) ?? 0;
         tr.className = `pc-group-theme-${pcIndex}` + (rowIndex === pcGroup.start ? " pc-group-start" : "");
@@ -1159,7 +1163,11 @@ function renderMatrix() {
             if (rowIndex === pcGroup.start) {
                 pcCell = `<td class="cell-pc" rowspan="${pcGroup.span}"><strong>${escapeHtml(r.pcNo)}</strong></td>`;
                 camerasTotalCell = `<td class="cell-cameras-total" rowspan="${pcGroup.span}"><strong>${pcTotals.get(pcGroup.key) ?? 0}</strong></td>`;
-                softwareCell = `<td rowspan="${pcGroup.span}">${escapeHtml(r.software || '-')}</td>`;
+                // Software gets its own rowspan based on identical software, not the whole PC.
+                // This keeps values such as "iVMS 4200" and "iVMS lite 4200" visible when they differ.
+                if (rowIndex === softwareGroup.start) {
+                    softwareCell = `<td rowspan="${softwareGroup.span}">${escapeHtml(r.software || '-')}</td>`;
+                }
             }
 
             // Network inside the PC
@@ -1176,6 +1184,12 @@ function renderMatrix() {
             // TV inside the Client
             if (rowIndex === tvGroup.start) {
                 tvCell = `<td class="cell-tv" rowspan="${tvGroup.span}">${escapeHtml(r.tvDisplay)}</td>`;
+            }
+
+            // Software: merge only when the software value is identical.
+            // A different software value gets its own visible cell.
+            if (rowIndex === softwareGroup.start) {
+                softwareCell = `<td rowspan="${softwareGroup.span}">${escapeHtml(r.software || '-')}</td>`;
             }
         }
 
